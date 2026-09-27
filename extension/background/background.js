@@ -17,31 +17,61 @@ const DEFAULT_SETTINGS = {
   hapticFeedback: true
 };
 
+// In-flight mutex promise to prevent concurrent createDocument race conditions
+let creatingOffscreenPromise = null;
+
 // Ensure offscreen document is active for WebRTC
 async function ensureOffscreenDocument() {
   if (await hasOffscreenDocument()) {
     return;
   }
 
-  try {
-    await chrome.offscreen.createDocument({
-      url: OFFSCREEN_DOCUMENT_PATH,
-      reasons: ['WEB_RTC'],
-      justification: 'Maintain real-time WebRTC DataChannel connection with mobile trackpad'
-    });
-    console.log('[Scroll Background] Offscreen document created');
-  } catch (err) {
-    console.error('[Scroll Background] Failed to create offscreen document:', err);
+  // If another call is already in progress, wait for it
+  if (creatingOffscreenPromise) {
+    await creatingOffscreenPromise;
+    return;
   }
+
+  creatingOffscreenPromise = (async () => {
+    try {
+      await chrome.offscreen.createDocument({
+        url: OFFSCREEN_DOCUMENT_PATH,
+        reasons: ['WEB_RTC'],
+        justification: 'Maintain real-time WebRTC DataChannel connection with mobile trackpad'
+      });
+      console.log('[Scroll Background] Offscreen document created');
+    } catch (err) {
+      // Benign race condition: document was already created by another call
+      if (err && err.message && err.message.includes('Only a single offscreen document')) {
+        return;
+      }
+      console.error('[Scroll Background] Failed to create offscreen document:', err);
+    } finally {
+      creatingOffscreenPromise = null;
+    }
+  })();
+
+  await creatingOffscreenPromise;
 }
 
 async function hasOffscreenDocument() {
-  const matchedClients = await clients.matchAll();
-  for (const client of matchedClients) {
-    if (client.url.includes(OFFSCREEN_DOCUMENT_PATH)) {
-      return true;
-    }
+  // Use official Chrome 116+ API if available
+  if ('hasDocument' in chrome.offscreen) {
+    try {
+      return await chrome.offscreen.hasDocument();
+    } catch (e) {}
   }
+
+  // Fallback to clients API
+  try {
+    const matchedClients = await clients.matchAll();
+    for (const client of matchedClients) {
+      if (client.url && client.url.includes(OFFSCREEN_DOCUMENT_PATH)) {
+        return true;
+      }
+    }
+  } catch (e) {}
+
   return false;
 }
 
