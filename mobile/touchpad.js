@@ -246,13 +246,20 @@
       }
     }
 
-    // 1-Finger Mode: 2D Omnidirectional Pan
+    // 1-Finger Mode: 2D Omnidirectional Pan with Modern Trackpad Ballistics
     if (activeTouches.size === 1) {
       const t = activeTouches.values().next().value;
-      const dx = (t.x - t.lastX) * speedMultiplier;
-      const dy = (t.y - t.lastY) * speedMultiplier;
+      const rawDx = t.x - t.lastX;
+      const rawDy = t.y - t.lastY;
 
-      // Natural drag: dragging up moves page down or up depending on natural config
+      // Trackpad Ballistics Curve: Precision at low speeds, swift distance on natural swipes
+      const dist = Math.hypot(rawDx, rawDy);
+      const accel = 1.0 + Math.min(dist * 0.07, 2.6);
+      const gain = 2.0 * speedMultiplier;
+
+      const dx = rawDx * accel * gain;
+      const dy = rawDy * accel * gain;
+
       sendPacket(['pan', dx, dy]);
     }
     // 2-Finger Mode: Pinch-to-Zoom
@@ -266,7 +273,7 @@
         const delta = (distDelta / 140) * speedMultiplier;
 
         const prevScale = currentZoomScale;
-        currentZoomScale = Math.min(Math.max(currentZoomScale * (1 + delta), 1.0), 5.0);
+        currentZoomScale = Math.min(Math.max(currentZoomScale * (1 + delta), 1.0), 4.0);
 
         // Haptic feedback when crossing 100% boundary
         if ((prevScale <= 1.02 && currentZoomScale > 1.02) || (prevScale >= 1.02 && currentZoomScale <= 1.02)) {
@@ -298,11 +305,16 @@
       gestureModeBadge.textContent = 'Ready';
       if (watermark) watermark.classList.remove('hidden');
 
-      // Trigger momentum fling if velocity is substantial
+      // Authentic Trackpad Momentum: Fling with silky deceleration
       if (lastReleasedEntry) {
         const speed = Math.hypot(lastReleasedEntry.vx, lastReleasedEntry.vy);
-        if (speed > 0.4) {
-          startMomentum(lastReleasedEntry.vx * 16 * speedMultiplier, lastReleasedEntry.vy * 16 * speedMultiplier);
+        // Low threshold so natural flick always glides
+        if (speed > 0.08) {
+          const impulse = Math.min(speed * 28 * speedMultiplier, 95);
+          const angle = Math.atan2(lastReleasedEntry.vy, lastReleasedEntry.vx);
+          const initVx = Math.cos(angle) * impulse;
+          const initVy = Math.sin(angle) * impulse;
+          startMomentum(initVx, initVy);
         }
       }
     } else if (activeTouches.size === 1) {
@@ -312,7 +324,7 @@
     renderVisualizers();
   }
 
-  // --- Momentum Physics ---
+  // --- Modern Trackpad Momentum Physics ---
 
   function startMomentum(vx, vy) {
     cancelMomentum();
@@ -320,11 +332,11 @@
     momentumVy = vy;
 
     function step() {
-      // Friction coefficient (0.94 creates authentic Apple Magic Trackpad glide)
-      momentumVx *= 0.94;
-      momentumVy *= 0.94;
+      // 0.955 friction constant matches Windows Precision Touchpad / DirectManipulation glide
+      momentumVx *= 0.955;
+      momentumVy *= 0.955;
 
-      if (Math.hypot(momentumVx, momentumVy) < 0.25) {
+      if (Math.hypot(momentumVx, momentumVy) < 0.18) {
         momentumRaf = null;
         return;
       }

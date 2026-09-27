@@ -18,24 +18,15 @@
     hoveredElement = e.target;
   }, { passive: true });
 
-  // --- Visual Viewport & GPU Zoom Engine ---
+  // --- Modern Trackpad & Viewport Engine ---
   let visualScale = 1.0;
-  let panX = 0;
-  let panY = 0;
-  let isZoomed = false;
 
-  // Subpixel accumulator & RequestAnimationFrame loop for normal scrolling
+  // Subpixel accumulator & RequestAnimationFrame loop for high-frequency scrolling
   let pendingDx = 0;
   let pendingDy = 0;
   let isRafScheduled = false;
 
   function schedulePan(dx, dy) {
-    // If the page is visually zoomed in, pan across the magnified viewport!
-    if (isZoomed && visualScale > 1.01) {
-      handleZoomedPan(dx, dy);
-      return;
-    }
-
     pendingDx += dx;
     pendingDy += dy;
 
@@ -47,7 +38,7 @@
 
   function flushPan() {
     isRafScheduled = false;
-    const target = getScrollTarget();
+    const target = getScrollTarget(pendingDy, pendingDx);
 
     if (!target || target === window || target === document.documentElement || target === document.body) {
       window.scrollBy({
@@ -67,76 +58,33 @@
     pendingDy = 0;
   }
 
-  // Find the appropriate scrollable element
-  function getScrollTarget() {
+  // Find the appropriate scrollable element with intelligent scroll-chaining
+  function getScrollTarget(dy, dx) {
     let el = hoveredElement;
     while (el && el !== document.body && el !== document.documentElement) {
       const style = window.getComputedStyle(el);
       const overflowY = style.overflowY;
       const overflowX = style.overflowX;
-      const isScrollable = (
-        (overflowY === 'auto' || overflowY === 'scroll') && el.scrollHeight > el.clientHeight
-      ) || (
-        (overflowX === 'auto' || overflowX === 'scroll') && el.scrollWidth > el.clientWidth
-      );
+      const isScrollableY = (overflowY === 'auto' || overflowY === 'scroll') && el.scrollHeight > el.clientHeight;
+      const isScrollableX = (overflowX === 'auto' || overflowX === 'scroll') && el.scrollWidth > el.clientWidth;
 
-      if (isScrollable) {
-        return el;
+      if (isScrollableY || isScrollableX) {
+        // Check if container can actually receive more scroll in this direction
+        const canScrollDown = dy > 0 && el.scrollTop + el.clientHeight < el.scrollHeight - 1;
+        const canScrollUp = dy < 0 && el.scrollTop > 1;
+        const canScrollRight = dx > 0 && el.scrollLeft + el.clientWidth < el.scrollWidth - 1;
+        const canScrollLeft = dx < 0 && el.scrollLeft > 1;
+
+        if (canScrollDown || canScrollUp || canScrollRight || canScrollLeft) {
+          return el;
+        }
       }
       el = el.parentElement;
     }
     return window;
   }
 
-  // Pan across the magnified viewport when zoomed in
-  function handleZoomedPan(dx, dy) {
-    const oldPanX = panX;
-    const oldPanY = panY;
-
-    panX += dx;
-    panY += dy;
-    clampPan();
-    applyVisualTransform();
-
-    // If pan hit the edge of the zoomed viewport, overflow into regular page scroll
-    const overflowX = dx - (panX - oldPanX);
-    const overflowY = dy - (panY - oldPanY);
-    if (Math.abs(overflowX) > 0.5 || Math.abs(overflowY) > 0.5) {
-      window.scrollBy({
-        left: overflowX,
-        top: overflowY,
-        behavior: 'instant'
-      });
-    }
-  }
-
-  function clampPan() {
-    const maxShiftX = window.innerWidth * (visualScale - 1);
-    const maxShiftY = window.innerHeight * (visualScale - 1);
-
-    panX = Math.min(0, Math.max(-maxShiftX, panX));
-    panY = Math.min(0, Math.max(-maxShiftY, panY));
-  }
-
-  function applyVisualTransform() {
-    const html = document.documentElement;
-    if (visualScale <= 1.01) {
-      html.style.transform = '';
-      html.style.transformOrigin = '';
-      html.style.willChange = '';
-      html.classList.remove('__scroll_zoomed__');
-      isZoomed = false;
-      return;
-    }
-
-    isZoomed = true;
-    html.classList.add('__scroll_zoomed__');
-    html.style.transformOrigin = '0 0';
-    html.style.transform = `translate3d(${panX.toFixed(2)}px, ${panY.toFixed(2)}px, 0) scale(${visualScale.toFixed(4)})`;
-    html.style.willChange = 'transform';
-  }
-
-  // Handle True Visual Viewport Pinch-to-Zoom
+  // Handle Pinch to Zoom while 100% preserving native scrollbars and vector clarity
   function handleZoom(delta, scale, mode) {
     // Check if user is hovering over an interactive web canvas (Google Maps, Figma, Leaflet)
     const isCanvasApp = hoveredElement && (
@@ -145,7 +93,6 @@
     );
 
     if (mode === 'wheel' || (isCanvasApp && visualScale <= 1.01)) {
-      // Forward synthetic wheel event directly to interactive canvas
       const targetX = lastMouseX || (window.innerWidth / 2);
       const targetY = lastMouseY || (window.innerHeight / 2);
       const targetEl = hoveredElement || document.elementFromPoint(targetX, targetY) || document.body;
@@ -155,7 +102,7 @@
         cancelable: true,
         view: window,
         ctrlKey: true,
-        deltaY: -delta * 100,
+        deltaY: -delta * 120,
         clientX: targetX,
         clientY: targetY
       });
@@ -164,52 +111,43 @@
       return;
     }
 
-    // --- True GPU-Accelerated Visual Viewport Zoom ---
+    // --- Continuous Viewport Zoom (Preserves Native Window Scrollbar) ---
     const oldScale = visualScale;
-    const zoomMultiplier = 1 + (delta * 2.2);
-    let newScale = Math.min(Math.max(visualScale * zoomMultiplier, 1.0), 5.0);
+    const zoomMultiplier = 1 + (delta * 1.6);
+    let newScale = Math.min(Math.max(visualScale * zoomMultiplier, 1.0), 4.0);
 
-    // Snap cleanly to 1.0 if very close
     if (newScale <= 1.015) {
       newScale = 1.0;
     }
 
-    if (newScale === 1.0 && oldScale === 1.0) {
+    if (Math.abs(newScale - oldScale) < 0.002) return;
+
+    visualScale = newScale;
+
+    if (visualScale === 1.0) {
+      document.body.style.zoom = '';
+      showHud('Zoom', '100%');
       return;
     }
 
+    // Apply continuous CSS zoom on body: Native window scrollbars stay completely visible!
+    document.body.style.zoom = visualScale.toFixed(3);
+
+    // Keep focal point stationary relative to viewport
     const fx = lastMouseX || (window.innerWidth / 2);
     const fy = lastMouseY || (window.innerHeight / 2);
-
-    // Zoom focal-point camera formula: Keeps point under cursor visually anchored
-    panX = fx - (fx - panX) * (newScale / oldScale);
-    panY = fy - (fy - panY) * (newScale / oldScale);
-    visualScale = newScale;
-
-    clampPan();
-    applyVisualTransform();
+    const ratio = newScale / oldScale;
+    const adjustX = (window.scrollX + fx) * (ratio - 1);
+    const adjustY = (window.scrollY + fy) * (ratio - 1);
+    window.scrollBy({ left: adjustX, top: adjustY, behavior: 'instant' });
 
     showHud('Zoom', `${Math.round(visualScale * 100)}%`);
   }
 
   // Reset Zoom
   function resetVisualZoom() {
-    const html = document.documentElement;
-    if (isZoomed || visualScale > 1.01) {
-      html.style.transition = 'transform 0.22s cubic-bezier(0.16, 1, 0.3, 1)';
-      html.style.transform = 'translate3d(0, 0, 0) scale(1)';
-      setTimeout(() => {
-        visualScale = 1.0;
-        panX = 0;
-        panY = 0;
-        isZoomed = false;
-        html.style.transition = '';
-        html.style.transform = '';
-        html.style.transformOrigin = '';
-        html.style.willChange = '';
-        html.classList.remove('__scroll_zoomed__');
-      }, 230);
-    }
+    visualScale = 1.0;
+    document.body.style.zoom = '';
     showHud('Zoom', '100%');
   }
 
