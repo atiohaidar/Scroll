@@ -10,16 +10,43 @@
   // Track cursor position to direct scroll and zoom gestures
   let lastMouseX = window.innerWidth / 2;
   let lastMouseY = window.innerHeight / 2;
-  let hoveredElement = null;
+  let cachedScrollTarget = window;
+  let lastCheckedHovered = null;
+
+  // Non-blocking helper: resolves scrollable container only when hover target changes
+  function resolveScrollContainer(el) {
+    if (!el || el === document.body || el === document.documentElement) return window;
+    let curr = el;
+    let depth = 0;
+    while (curr && curr !== document.body && curr !== document.documentElement && depth < 8) {
+      if (curr.scrollHeight > curr.clientHeight || curr.scrollWidth > curr.clientWidth) {
+        try {
+          const style = window.getComputedStyle(curr);
+          const oy = style.overflowY;
+          const ox = style.overflowX;
+          if (oy === 'auto' || oy === 'scroll' || ox === 'auto' || ox === 'scroll') {
+            return curr;
+          }
+        } catch (e) {}
+      }
+      curr = curr.parentElement;
+      depth++;
+    }
+    return window;
+  }
 
   let lastReportedCursor = 0;
   window.addEventListener('mousemove', (e) => {
     lastMouseX = e.clientX;
     lastMouseY = e.clientY;
-    hoveredElement = e.target;
+
+    if (e.target !== lastCheckedHovered) {
+      lastCheckedHovered = e.target;
+      cachedScrollTarget = resolveScrollContainer(e.target);
+    }
 
     const now = performance.now();
-    if (now - lastReportedCursor > 120) {
+    if (now - lastReportedCursor > 150) {
       lastReportedCursor = now;
       chrome.runtime.sendMessage({
         type: 'CURSOR_MOVE',
@@ -49,50 +76,37 @@
 
   function flushPan() {
     isRafScheduled = false;
-    const target = getScrollTarget(pendingDy, pendingDx);
 
-    if (!target || target === window || target === document.documentElement || target === document.body) {
-      window.scrollBy({
-        left: pendingDx,
-        top: pendingDy,
-        behavior: 'instant'
-      });
-    } else {
-      target.scrollBy({
-        left: pendingDx,
-        top: pendingDy,
-        behavior: 'instant'
-      });
-    }
-
+    const dx = pendingDx;
+    const dy = pendingDy;
     pendingDx = 0;
     pendingDy = 0;
-  }
 
-  // Find the appropriate scrollable element with intelligent scroll-chaining
-  function getScrollTarget(dy, dx) {
-    let el = hoveredElement;
-    while (el && el !== document.body && el !== document.documentElement) {
-      const style = window.getComputedStyle(el);
-      const overflowY = style.overflowY;
-      const overflowX = style.overflowX;
-      const isScrollableY = (overflowY === 'auto' || overflowY === 'scroll') && el.scrollHeight > el.clientHeight;
-      const isScrollableX = (overflowX === 'auto' || overflowX === 'scroll') && el.scrollWidth > el.clientWidth;
+    const target = cachedScrollTarget;
 
-      if (isScrollableY || isScrollableX) {
-        // Check if container can actually receive more scroll in this direction
-        const canScrollDown = dy > 0 && el.scrollTop + el.clientHeight < el.scrollHeight - 1;
-        const canScrollUp = dy < 0 && el.scrollTop > 1;
-        const canScrollRight = dx > 0 && el.scrollLeft + el.clientWidth < el.scrollWidth - 1;
-        const canScrollLeft = dx < 0 && el.scrollLeft > 1;
+    // Fast check: if inner element can absorb the scroll
+    if (target && target !== window && target !== document.body && target !== document.documentElement) {
+      const canScrollY = (dy > 0 && target.scrollTop + target.clientHeight < target.scrollHeight - 1) ||
+                         (dy < 0 && target.scrollTop > 0);
+      const canScrollX = (dx > 0 && target.scrollLeft + target.clientWidth < target.scrollWidth - 1) ||
+                         (dx < 0 && target.scrollLeft > 0);
 
-        if (canScrollDown || canScrollUp || canScrollRight || canScrollLeft) {
-          return el;
-        }
+      if (canScrollY || canScrollX) {
+        target.scrollBy({
+          left: dx,
+          top: dy,
+          behavior: 'instant'
+        });
+        return;
       }
-      el = el.parentElement;
     }
-    return window;
+
+    // Direct hardware-accelerated window scroll (zero forced reflow)
+    window.scrollBy({
+      left: dx,
+      top: dy,
+      behavior: 'instant'
+    });
   }
 
   // --- Full-Document Continuous Zoom Engine ---

@@ -80,7 +80,65 @@
       }
     }
   }
-  updateScrollDirUI();
+  // Pan gesture RAF Coalescing for VSync-aligned sub-frame streaming
+  let pendingPanDx = 0;
+  let pendingPanDy = 0;
+  let panRafId = null;
+
+  function flushPan() {
+    panRafId = null;
+    if (Math.abs(pendingPanDx) > 0.04 || Math.abs(pendingPanDy) > 0.04) {
+      sendPacket(['pan', Math.round(pendingPanDx * 100) / 100, Math.round(pendingPanDy * 100) / 100]);
+      pendingPanDx = 0;
+      pendingPanDy = 0;
+    }
+  }
+
+  function queuePan(dx, dy) {
+    pendingPanDx += dx;
+    pendingPanDy += dy;
+    if (!panRafId) {
+      panRafId = requestAnimationFrame(flushPan);
+    }
+  }
+
+  // Pre-allocated static visualizer elements (0 DOM allocations during touch)
+  let vRing1 = null;
+  let vRing2 = null;
+  let vPinchLine = null;
+  let vPinchBadge = null;
+
+  function initVisualizers() {
+    if (!touchOverlay) return;
+    touchOverlay.innerHTML = '';
+
+    vRing1 = document.createElement('div');
+    vRing1.className = 'touch-ring';
+    vRing1.style.display = 'none';
+    const c1 = document.createElement('div');
+    c1.className = 'touch-ring-core';
+    vRing1.appendChild(c1);
+    touchOverlay.appendChild(vRing1);
+
+    vRing2 = document.createElement('div');
+    vRing2.className = 'touch-ring';
+    vRing2.style.display = 'none';
+    const c2 = document.createElement('div');
+    c2.className = 'touch-ring-core';
+    vRing2.appendChild(c2);
+    touchOverlay.appendChild(vRing2);
+
+    vPinchLine = document.createElement('div');
+    vPinchLine.className = 'pinch-line';
+    vPinchLine.style.display = 'none';
+    touchOverlay.appendChild(vPinchLine);
+
+    vPinchBadge = document.createElement('div');
+    vPinchBadge.className = 'pinch-badge';
+    vPinchBadge.style.display = 'none';
+    touchOverlay.appendChild(vPinchBadge);
+  }
+  initVisualizers();
 
   // --- Network & WebRTC Connection ---
 
@@ -300,13 +358,13 @@
 
       // Trackpad Ballistics Curve: Precision at low speeds, swift distance on natural swipes
       const dist = Math.hypot(rawDx, rawDy);
-      const accel = 1.0 + Math.min(dist * 0.07, 2.6);
-      const gain = 2.0 * speedMultiplier;
+      const accel = 1.0 + Math.min(dist * 0.06, 2.2);
+      const gain = 1.8 * speedMultiplier;
 
       const dx = rawDx * accel * gain;
       const dy = rawDy * accel * gain;
 
-      sendPacket(['pan', dx, dy]);
+      queuePan(dx, dy);
     }
     // 2-Finger Mode: Pinch-to-Zoom
     else if (activeTouches.size === 2) {
@@ -336,6 +394,11 @@
 
   function onTouchEnd(e) {
     e.preventDefault();
+
+    if (panRafId) {
+      cancelAnimationFrame(panRafId);
+      flushPan();
+    }
 
     let lastReleasedEntry = null;
 
@@ -378,16 +441,16 @@
     momentumVy = vy;
 
     function step() {
-      // 0.955 friction constant matches Windows Precision Touchpad / DirectManipulation glide
-      momentumVx *= 0.955;
-      momentumVy *= 0.955;
+      // 0.952 friction constant matches Windows Precision Touchpad / DirectManipulation glide
+      momentumVx *= 0.952;
+      momentumVy *= 0.952;
 
-      if (Math.hypot(momentumVx, momentumVy) < 0.18) {
+      if (Math.hypot(momentumVx, momentumVy) < 0.22) {
         momentumRaf = null;
         return;
       }
 
-      sendPacket(['pan', momentumVx, momentumVy]);
+      sendPacket(['pan', Math.round(momentumVx * 100) / 100, Math.round(momentumVy * 100) / 100]);
       momentumRaf = requestAnimationFrame(step);
     }
 
@@ -401,49 +464,53 @@
     }
   }
 
-  // --- Visual Feedback Rendering (Ripples & Pinch Line) ---
+  // --- Visual Feedback Rendering (0 DOM Allocation) ---
 
   function renderVisualizers() {
-    touchOverlay.innerHTML = '';
+    if (!vRing1) return;
 
-    const touches = Array.from(activeTouches.values());
-
-    // Render individual touch rings
-    for (const t of touches) {
-      const ring = document.createElement('div');
-      ring.className = 'touch-ring';
-      ring.style.left = `${t.x}px`;
-      ring.style.top = `${t.y}px`;
-
-      const core = document.createElement('div');
-      core.className = 'touch-ring-core';
-      ring.appendChild(core);
-
-      touchOverlay.appendChild(ring);
+    const count = activeTouches.size;
+    if (count === 0) {
+      vRing1.style.display = 'none';
+      vRing2.style.display = 'none';
+      vPinchLine.style.display = 'none';
+      vPinchBadge.style.display = 'none';
+      return;
     }
 
-    // Render 2-finger pinch line and distance badge
-    if (touches.length === 2) {
-      const [t1, t2] = touches;
-      const midX = (t1.x + t2.x) / 2;
-      const midY = (t1.y + t2.y) / 2;
-      const dist = Math.hypot(t2.x - t1.x, t2.y - t1.y);
-      const angle = Math.atan2(t2.y - t1.y, t2.x - t1.x);
+    const it = activeTouches.values();
+    const t1 = it.next().value;
 
-      const line = document.createElement('div');
-      line.className = 'pinch-line';
-      line.style.left = `${t1.x}px`;
-      line.style.top = `${t1.y}px`;
-      line.style.width = `${dist}px`;
-      line.style.transform = `rotate(${angle}rad)`;
-      touchOverlay.appendChild(line);
+    if (t1) {
+      vRing1.style.display = 'block';
+      vRing1.style.transform = `translate3d(${t1.x}px, ${t1.y}px, 0)`;
+    } else {
+      vRing1.style.display = 'none';
+    }
 
-      const badge = document.createElement('div');
-      badge.className = 'pinch-badge';
-      badge.style.left = `${midX}px`;
-      badge.style.top = `${midY}px`;
-      badge.textContent = `${Math.round(currentZoomScale * 100)}%`;
-      touchOverlay.appendChild(badge);
+    if (count >= 2) {
+      const t2 = it.next().value;
+      if (t2) {
+        vRing2.style.display = 'block';
+        vRing2.style.transform = `translate3d(${t2.x}px, ${t2.y}px, 0)`;
+
+        const dist = Math.hypot(t2.x - t1.x, t2.y - t1.y);
+        const angle = Math.atan2(t2.y - t1.y, t2.x - t1.x);
+        const midX = (t1.x + t2.x) / 2;
+        const midY = (t1.y + t2.y) / 2;
+
+        vPinchLine.style.display = 'block';
+        vPinchLine.style.width = `${dist}px`;
+        vPinchLine.style.transform = `translate3d(${t1.x}px, ${t1.y}px, 0) rotate(${angle}rad)`;
+
+        vPinchBadge.style.display = 'block';
+        vPinchBadge.style.transform = `translate3d(${midX}px, ${midY}px, 0)`;
+        vPinchBadge.textContent = `${Math.round(currentZoomScale * 100)}%`;
+      }
+    } else {
+      vRing2.style.display = 'none';
+      vPinchLine.style.display = 'none';
+      vPinchBadge.style.display = 'none';
     }
   }
 

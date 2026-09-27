@@ -206,10 +206,13 @@ html, body {
   position: absolute;
   inset: 0;
   pointer-events: none;
+  overflow: hidden;
 }
 
 .touch-ring {
   position: absolute;
+  top: 0;
+  left: 0;
   width: 56px;
   height: 56px;
   margin-left: -28px;
@@ -217,9 +220,8 @@ html, body {
   border-radius: 50%;
   background: rgba(0, 122, 255, 0.08);
   border: 1.5px solid rgba(0, 122, 255, 0.4);
-  transform: scale(0.85);
-  animation: ringPop 0.15s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   pointer-events: none;
+  will-change: transform;
 }
 
 .touch-ring-core {
@@ -234,22 +236,21 @@ html, body {
   background: var(--accent);
 }
 
-@keyframes ringPop {
-  to { transform: scale(1); }
-}
-
 .pinch-line {
   position: absolute;
+  top: 0;
+  left: 0;
   pointer-events: none;
   border-top: 2px dashed rgba(0, 122, 255, 0.4);
   transform-origin: 0 0;
+  will-change: transform, width;
 }
 
 .pinch-badge {
   position: absolute;
-  background: rgba(28, 28, 30, 0.85);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  top: 0;
+  left: 0;
+  background: rgba(28, 28, 30, 0.88);
   color: #FFFFFF;
   padding: 4px 8px;
   border-radius: 6px;
@@ -257,8 +258,10 @@ html, body {
   font-size: 11px;
   font-weight: 600;
   pointer-events: none;
-  transform: translate(-50%, -50%);
+  margin-left: -20px;
+  margin-top: -24px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  will-change: transform;
 }
 
 /* Bottom HUD Footer */

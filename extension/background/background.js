@@ -135,6 +135,12 @@ chrome.tabs.onActivated.addListener(async (activeInfo) => {
   broadcastTabs();
 });
 
+// Warm up active tab cache immediately on start and on window focus
+getActiveTab();
+chrome.windows.onFocusChanged.addListener(() => {
+  getActiveTab();
+});
+
 // Broadcast tabs list to offscreen/mobile
 async function getTabList() {
   try {
