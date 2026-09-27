@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tutorial & Panduan Penggunaan — Scroll</title>
+  <meta name="description" content="Panduan langkah demi langkah cara menghubungkan HP kamu sebagai remote trackpad browser untuk scrolling halus, pinch to zoom, dan tab switching via WebRTC.">
+  <link rel="stylesheet" href="landing.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%230070F3'><path d='M12 2a4 4 0 0 0-4 4v12a4 4 0 0 0 8 0V6a4 4 0 0 0-4-4zm0 3a1 1 0 0 1 1 1v4h-2V6a1 1 0 0 1 1-1z'/></svg>">
+</head>
+<body>
+
+  <!-- Header Nav -->
+  <header class="site-header">
+    <div class="container header-inner">
+      <a href="#" class="brand">
+        <div class="brand-icon">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5">
+            <rect x="5" y="2" width="14" height="20" rx="3" />
+            <line x1="12" y1="6" x2="12" y2="10" stroke-linecap="round" />
+          </svg>
+        </div>
+        <span>Scroll</span>
+        <span class="version-badge">v1.2 P2P</span>
+      </a>
+
+      <nav class="nav-links">
+        <a href="#cara-pasang" class="nav-link">1. Cara Pasang</a>
+        <a href="#cara-konek" class="nav-link">2. Cara Konek</a>
+        <a href="#gesture" class="nav-link">3. Panduan Gesture</a>
+        <a href="#troubleshooting" class="nav-link">Bantuan</a>
+      </nav>
+
+      <div class="header-actions">
+        <a href="./mobile/" class="btn btn-primary" target="_blank">Buka Controller HP</a>
+      </div>
+    </div>
+  </header>
+
+  <!-- Hero / Introduction -->
+  <main class="container">
+    <section class="hero">
+      <div class="hero-pill">
+        <span class="hero-pill-dot"></span>
+        <span>Dokumentasi & Tutorial Penggunaan</span>
+      </div>
+      <h1>Pakai HP Kamu Jadi Trackpad Laptop</h1>
+      <p>
+        Scroll adalah ekstensi Chrome yang mengubah layar smartphone menjadi trackpad nirkabel. 
+        Koneksi berjalan langsung secara <em>peer-to-peer</em> (P2P via WebRTC UDP) dengan latensi di bawah 5ms tanpa perlu install aplikasi APK/IPA di HP dan tanpa server pihak ketiga.
+      </p>
+      <div class="hero-actions">
+        <a href="#cara-pasang" class="btn btn-primary">Mulai Dari Langkah 1</a>
+        <a href="https://github.com/atiohaidar/Scroll" target="_blank" class="btn btn-secondary">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor">
+            <path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/>
+          </svg>
+          Repository GitHub
+        </a>
+      </div>
+    </section>
+
+    <!-- Quick Overview Box -->
+    <div class="quick-overview">
+      <div class="overview-item">
+        <span class="overview-step">Langkah 1</span>
+        <span class="overview-title">Pasang Ekstensi di Laptop</span>
+        <span class="overview-desc">Load folder ekstensi di menu Developer Mode Chrome atau browser berbasis Chromium.</span>
+      </div>
+      <div class="overview-item">
+        <span class="overview-step">Langkah 2</span>
+        <span class="overview-title">Buka Controller di HP</span>
+        <span class="overview-desc">Buka halaman web controller di HP atau scan QR Code yang tampil di ekstensi.</span>
+      </div>
+      <div class="overview-item">
+        <span class="overview-step">Langkah 3</span>
+        <span class="overview-title">Mulai Navigasi</span>
+        <span class="overview-desc">Gunakan jari untuk scroll halus, pinch to zoom, dan navigasi tab aktif di laptop.</span>
+      </div>
+    </div>
+
+    <!-- Step 1: Pasang Ekstensi -->
+    <section id="cara-pasang" class="section">
+      <div class="section-tag">Tahap Persiapan</div>
+      <h2 class="section-title">1. Cara Pasang Ekstensi di Laptop</h2>
+      <p class="section-subtitle">Hanya perlu dilakukan sekali di browser laptop kamu (Chrome, Edge, Brave, atau Opera).</p>
+
+      <div class="step-card">
+        <div class="step-badge">1</div>
+        <h3 class="step-heading">Buka Halaman Ekstensi Browser</h3>
+        <div class="step-content">
+          <p>Ketik alamat ini di bilah URL browser laptop kamu lalu tekan Enter:</p>
+          <div style="margin: 10px 0;">
+            <code class="code-snippet" id="snippet-ext">chrome://extensions</code>
+            <button class="btn btn-secondary copy-btn" style="margin-left: 8px; padding: 4px 10px; font-size: 12px;" onclick="copyText('chrome://extensions')">Salin</button>
+          </div>
+          <p style="font-size: 13px; color: var(--text-subtle);">Catatan: Pengguna Edge bisa menggunakan <code>edge://extensions</code>, Brave di <code>brave://extensions</code>.</p>
+        </div>
+      </div>
+
+      <div class="step-card" style="margin-top: 16px;">
+        <div class="step-badge">2</div>
+        <h3 class="step-heading">Aktifkan Developer Mode & Load Ekstensi</h3>
+        <div class="step-content">
+          <ol>
+            <li>Nyalakan toggle <strong>Developer mode</strong> (biasanya ada di pojok kanan atas layar).</li>
+            <li>Klik tombol <strong>Load unpacked</strong> di pojok kiri atas.</li>
+            <li>Arahkan dan pilih folder <code>Scroll/extension</code> dari repositori yang sudah di-download.</li>
+            <li>Ekstensi <strong>Scroll</strong> akan langsung terpasang dan aktif.</li>
+          </ol>
+          <div class="info-banner">
+            <strong>Tips:</strong> Klik icon puzzle di pojok kanan toolbar browser kamu, lalu <em>Pin</em> icon Scroll agar selalu terlihat dan mudah dibuka.
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Step 2: Konek HP ke Laptop -->
+    <section id="cara-konek" class="section">
+      <div class="section-tag">Konektivitas</div>
+      <h2 class="section-title">2. Cara Menghubungkan HP ke Laptop</h2>
+      <p class="section-subtitle">Tidak perlu kabel data dan tidak perlu Bluetooth pairing sistem.</p>
+
+      <div class="step-card">
+        <div class="step-badge">1</div>
+        <h3 class="step-heading">Buka Menu Ekstensi di Laptop</h3>
+        <div class="step-content">
+          <p>Klik icon <strong>Scroll</strong> pada toolbar browser di laptop. Popup akan terbuka dan menampilkan:</p>
+          <ul>
+            <li><strong>QR Code</strong> unik untuk pairing otomatis.</li>
+            <li><strong>Room Code</strong> (contoh: <code>scr-9x4a</code>).</li>
+            <li>Status koneksi (<em>Ready / Waiting for controller</em>).</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="step-card" style="margin-top: 16px;">
+        <div class="step-badge">2</div>
+        <h3 class="step-heading">Buka Controller di Smartphone</h3>
+        <div class="step-content">
+          <p>Ada 2 pilihan cara mudah untuk membuka controller di smartphone:</p>
+          <ol>
+            <li><strong>Scan QR Code (Paling Cepat):</strong> Buka aplikasi Kamera bawaan di HP kamu, lalu arahkan ke QR Code di layar laptop. Klik link yang muncul.</li>
+            <li><strong>Buka Manual:</strong> Di browser HP (Safari/Chrome), buka link berikut:
+              <div style="margin: 8px 0;">
+                <code class="code-snippet" id="snippet-url">https://atiohaidar.github.io/Scroll/mobile/</code>
+                <button class="btn btn-secondary copy-btn" style="margin-left: 8px; padding: 4px 10px; font-size: 12px;" onclick="copyText('https://atiohaidar.github.io/Scroll/mobile/')">Salin</button>
+              </div>
+              Masukkan Room Code 4 digit yang tampil di laptop, lalu tekan <strong>Connect</strong>.
+            </li>
+          </ol>
+          <div class="info-banner" style="background: var(--emerald-light); border-left-color: var(--emerald);">
+            <strong style="color: var(--emerald);">Tanda Berhasil:</strong> Indikator status di pojok kiri atas layar HP akan berubah hijau dengan tulisan <strong>Connected</strong> dan menampilkan angka latensi (misal: <em>3 ms</em>).
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Step 3: Panduan Gesture -->
+    <section id="gesture" class="section">
+      <div class="section-tag">Kontrol & Navigasi</div>
+      <h2 class="section-title">3. Panduan Gesture & Fitur</h2>
+      <p class="section-subtitle">Cara menggunakan permukaan layar sentuh HP kamu untuk mengontrol browser di laptop.</p>
+
+      <div class="gesture-grid">
+        <div class="gesture-card">
+          <div class="gesture-header">
+            <div class="gesture-icon-box">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="7" r="4"/>
+                <path d="M12 11v8M9 16l3 3 3-3"/>
+              </svg>
+            </div>
+            <span class="gesture-tag">1 Jari</span>
+          </div>
+          <h4 class="gesture-title">Scroll / Panning 2 Arah</h4>
+          <p class="gesture-desc">Sentuh dan geser 1 jari di area trackpad HP untuk menggulir halaman website ke atas, bawah, kiri, atau kanan secara presisi.</p>
+        </div>
+
+        <div class="gesture-card">
+          <div class="gesture-header">
+            <div class="gesture-icon-box">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+              </svg>
+            </div>
+            <span class="gesture-tag">Flick & Release</span>
+          </div>
+          <h4 class="gesture-title">Inertia Momentum Gliding</h4>
+          <p class="gesture-desc">Geser jari lalu lepas dengan cepat (flick). Halaman web akan terus meluncur mulus dengan deselerasi fisik seperti trackpad laptop modern.</p>
+        </div>
+
+        <div class="gesture-card">
+          <div class="gesture-header">
+            <div class="gesture-icon-box">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="8" cy="8" r="3"/>
+                <circle cx="16" cy="16" r="3"/>
+                <line x1="10.5" y1="10.5" x2="13.5" y2="13.5" stroke-dasharray="2 2"/>
+              </svg>
+            </div>
+            <span class="gesture-tag">2 Jari</span>
+          </div>
+          <h4 class="gesture-title">Pinch to Zoom Kontinu</h4>
+          <p class="gesture-desc">Gunakan 2 jari lalu rentangkan atau ciutkan untuk memperbesar dan memperkecil seluruh dokumen web (100% sampai 300%) tanpa merusak scrollbar.</p>
+        </div>
+
+        <div class="gesture-card">
+          <div class="gesture-header">
+            <div class="gesture-icon-box">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="3" width="7" height="7" rx="1.5"/>
+                <rect x="14" y="3" width="7" height="7" rx="1.5"/>
+                <rect x="14" y="14" width="7" height="7" rx="1.5"/>
+                <rect x="3" y="14" width="7" height="7" rx="1.5"/>
+              </svg>
+            </div>
+            <span class="gesture-tag">Bilah Atas</span>
+          </div>
+          <h4 class="gesture-title">Remote Tab Switcher</h4>
+          <p class="gesture-desc">Daftar tab yang sedang terbuka di laptop otomatis sinkron ke HP. Cukup tap pada strip tab di layar HP untuk berpindah tab seketika.</p>
+        </div>
+
+        <div class="gesture-card">
+          <div class="gesture-header">
+            <div class="gesture-icon-box">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M7 16V4M7 4L3 8M7 4L11 8M17 8V20M17 20L21 16M17 20L13 16"/>
+              </svg>
+            </div>
+            <span class="gesture-tag">Tombol Nat ↕</span>
+          </div>
+          <h4 class="gesture-title">Arah Scroll (Natural vs Wheel)</h4>
+          <p class="gesture-desc">Tap tombol <strong>Nat ↕</strong> di header HP untuk switch antara mode <em>Natural</em> (jari dorong konten seperti touchscreen) dan mode <em>Wheel</em> (seperti roda mouse tradisional).</p>
+        </div>
+
+        <div class="gesture-card">
+          <div class="gesture-header">
+            <div class="gesture-icon-box">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 2v20M17 5v14M7 5v14M2 9v6M22 9v6"/>
+              </svg>
+            </div>
+            <span class="gesture-tag">Haptic</span>
+          </div>
+          <h4 class="gesture-title">Getaran Umpan Balik</h4>
+          <p class="gesture-desc">HP akan memberikan getaran halus (haptic feedback) saat terhubung, saat berganti tab, dan saat zoom melewati batas 100%.</p>
+        </div>
+      </div>
+
+      <!-- Live Interactive Demo Playground -->
+      <div class="sandbox-card">
+        <div class="sandbox-header">
+          <div>
+            <h3 class="sandbox-title">Coba Gerakan Gesture di Sini</h3>
+            <p style="font-size: 13px; color: var(--text-muted);">Tarik kotak di bawah pakai mouse atau layar sentuh untuk merasakan simulasi inertia momentum:</p>
+          </div>
+          <button id="btn-reset-demo" class="btn btn-secondary" style="font-size: 12px; padding: 4px 10px;">Reset Posisi</button>
+        </div>
+
+        <div id="demo-area" class="sandbox-area">
+          <div id="demo-target" class="sandbox-target">
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--primary);">
+              <circle cx="12" cy="12" r="9"/>
+              <path d="M12 8v8M8 12h8"/>
+            </svg>
+            <span>Tarik Saya</span>
+          </div>
+          <span class="sandbox-hint">Drag dengan cepat lalu lepas untuk melihat efek gliding</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Step 4: Troubleshooting -->
+    <section id="troubleshooting" class="section">
+      <div class="section-tag">Solusi Masalah</div>
+      <h2 class="section-title">Bantuan & Troubleshooting</h2>
+      <p class="section-subtitle">Jawaban cepat untuk kendala yang mungkin kamu temui.</p>
+
+      <div class="trouble-list">
+        <div class="trouble-item">
+          <h4 class="trouble-q">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"/>
+              <line x1="12" y1="8" x2="12" y2="12"/>
+              <line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
+            Kenapa scroll tidak jalan di tab tertentu?
+          </h4>
+          <p class="trouble-a">
+            Browser Chrome memiliki kebijakan keamanan yang melarang ekstensi menjalankan skrip di halaman sistem internal (seperti <code>chrome://extensions</code>, <code>chrome://settings</code>, Chrome Web Store, atau New Tab kosong). Cobalah buka tab website biasa (misal: Wikipedia, Google, YouTube, atau portal berita) untuk mulai scrolling.
+          </p>
+        </div>
+
+        <div class="trouble-item">
+          <h4 class="trouble-q">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"/>
+              <line x1="12" y1="8" x2="12" y2="12"/>
+              <line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
+            Status di HP terus menunjukkan "Connecting..." dan tidak berubah hijau?
+          </h4>
+          <p class="trouble-a">
+            Pastikan HP dan laptop kamu terhubung ke jaringan Wi-Fi / Hotspot yang sama atau keduanya memiliki koneksi internet aktif. Jika masih belum terhubung, coba tutup tab popup di laptop lalu buka kembali untuk membuat Room ID baru, kemudian scan ulang QR code.
+          </p>
+        </div>
+
+        <div class="trouble-item">
+          <h4 class="trouble-q">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"/>
+              <line x1="12" y1="8" x2="12" y2="12"/>
+              <line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
+            Bagaimana agar tampilan di HP menjadi Fullscreen (tanpa address bar browser)?
+          </h4>
+          <p class="trouble-a">
+            Di Safari (iPhone), tap tombol <strong>Share</strong> lalu pilih <strong>Add to Home Screen</strong>. Di Chrome (Android), tap menu titik tiga lalu pilih <strong>Install App</strong> atau <strong>Add to Home Screen</strong>. Ini akan membuka Scroll dalam mode Progressive Web App (PWA) layar penuh yang imersif.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="site-footer">
+      <div class="footer-inner">
+        <div>
+          <strong>Scroll</strong> &bull; Remote glass trackpad for desktop browsers via P2P WebRTC.
+        </div>
+        <div class="footer-links">
+          <a href="./mobile/" class="footer-link">Buka Controller</a>
+          <a href="https://github.com/atiohaidar/Scroll" target="_blank" class="footer-link">GitHub</a>
+        </div>
+      </div>
+    </footer>
+  </main>
+
+  <!-- Interactive Sandbox & Helper Script -->
+  <script>
+    // Copy helper
+    function copyText(str) {
+      navigator.clipboard.writeText(str).then(() => {
+        alert('Tersalin ke clipboard: ' + str);
+      }).catch(() => {});
+    }
+
+    // Mini Interactive Sandbox Physics Demo
+    (function() {
+      const area = document.getElementById('demo-area');
+      const target = document.getElementById('demo-target');
+      const btnReset = document.getElementById('btn-reset-demo');
+      if (!area || !target) return;
+
+      let posX = 0;
+      let posY = 0;
+      let vx = 0;
+      let vy = 0;
+      let isDragging = false;
+      let lastX = 0;
+      let lastY = 0;
+      let lastTime = 0;
+      let animId = null;
+
+      function updateTransform() {
+        target.style.transform = `translate3d(${posX}px, ${posY}px, 0)`;
+      }
+
+      function onPointerDown(e) {
+        isDragging = true;
+        cancelAnimationFrame(animId);
+        lastX = e.clientX;
+        lastY = e.clientY;
+        lastTime = performance.now();
+        vx = 0;
+        vy = 0;
+        area.setPointerCapture(e.pointerId);
+      }
+
+      function onPointerMove(e) {
+        if (!isDragging) return;
+        const now = performance.now();
+        const dt = Math.max(1, now - lastTime);
+        const dx = e.clientX - lastX;
+        const dy = e.clientY - lastY;
+
+        posX += dx;
+        posY += dy;
+
+        // Boundaries limit inside container
+        const maxLimit = 160;
+        posX = Math.max(-maxLimit, Math.min(maxLimit, posX));
+        posY = Math.max(-60, Math.min(60, posY));
+
+        vx = vx * 0.4 + (dx / dt) * 0.6;
+        vy = vy * 0.4 + (dy / dt) * 0.6;
+
+        lastX = e.clientX;
+        lastY = e.clientY;
+        lastTime = now;
+        updateTransform();
+      }
+
+      function onPointerUp(e) {
+        if (!isDragging) return;
+        isDragging = false;
+
+        // Momentum inertia loop
+        let impulseX = vx * 16;
+        let impulseY = vy * 16;
+
+        function glide() {
+          impulseX *= 0.94;
+          impulseY *= 0.94;
+
+          posX += impulseX;
+          posY += impulseY;
+
+          const maxLimit = 160;
+          posX = Math.max(-maxLimit, Math.min(maxLimit, posX));
+          posY = Math.max(-60, Math.min(60, posY));
+
+          updateTransform();
+
+          if (Math.hypot(impulseX, impulseY) > 0.15) {
+            animId = requestAnimationFrame(glide);
+          }
+        }
+        glide();
+      }
+
+      area.addEventListener('pointerdown', onPointerDown);
+      area.addEventListener('pointermove', onPointerMove);
+      area.addEventListener('pointerup', onPointerUp);
+      area.addEventListener('pointercancel', onPointerUp);
+
+      if (btnReset) {
+        btnReset.addEventListener('click', () => {
+          cancelAnimationFrame(animId);
+          posX = 0;
+          posY = 0;
+          updateTransform();
+        });
+      }
+    })();
+  </script>
+</body>
+</html>
