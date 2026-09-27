@@ -12,10 +12,21 @@
   let lastMouseY = window.innerHeight / 2;
   let hoveredElement = null;
 
+  let lastReportedCursor = 0;
   window.addEventListener('mousemove', (e) => {
     lastMouseX = e.clientX;
     lastMouseY = e.clientY;
     hoveredElement = e.target;
+
+    const now = performance.now();
+    if (now - lastReportedCursor > 120) {
+      lastReportedCursor = now;
+      chrome.runtime.sendMessage({
+        type: 'CURSOR_MOVE',
+        x: Math.round(e.clientX),
+        y: Math.round(e.clientY)
+      }).catch(() => {});
+    }
   }, { passive: true });
 
   // --- Modern Trackpad & Viewport Engine ---

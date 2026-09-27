@@ -97,6 +97,44 @@ chrome.runtime.onStartup.addListener(async () => {
 // Cache the active tab ID for rapid gesture dispatch
 let cachedActiveTabId = null;
 
+// Track cursor coordinates for hardware-accurate focal point
+let lastCursorPos = { x: 600, y: 400 };
+
+// Native Chromium CDP Debugger Manager
+const attachedTabs = new Set();
+let attachingTabPromise = null;
+
+async function ensureDebuggerAttached(tabId) {
+  if (attachedTabs.has(tabId)) return true;
+
+  if (attachingTabPromise) {
+    return await attachingTabPromise;
+  }
+
+  attachingTabPromise = (async () => {
+    try {
+      await chrome.debugger.attach({ tabId }, "1.3");
+      attachedTabs.add(tabId);
+      console.log('[Scroll Debugger] Attached to tab for native hardware gestures:', tabId);
+      return true;
+    } catch (err) {
+      // User may have dismissed or tab is restricted (e.g. chrome://)
+      return false;
+    } finally {
+      attachingTabPromise = null;
+    }
+  })();
+
+  return await attachingTabPromise;
+}
+
+chrome.debugger.onDetach.addListener((source, reason) => {
+  if (source && source.tabId) {
+    attachedTabs.delete(source.tabId);
+    console.log('[Scroll Debugger] Detached from tab:', source.tabId, reason);
+  }
+});
+
 async function getActiveTab() {
   try {
     const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
@@ -109,8 +147,17 @@ async function getActiveTab() {
 }
 
 // Track active tab changes
-chrome.tabs.onActivated.addListener((activeInfo) => {
+chrome.tabs.onActivated.addListener(async (activeInfo) => {
   cachedActiveTabId = activeInfo.tabId;
+  // Detach previous tabs to keep Chrome banner clean
+  for (const tid of attachedTabs) {
+    if (tid !== activeInfo.tabId) {
+      try {
+        await chrome.debugger.detach({ tabId: tid });
+      } catch (e) {}
+      attachedTabs.delete(tid);
+    }
+  }
 });
 
 // Message listener
@@ -119,6 +166,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'ENSURE_OFFSCREEN') {
     ensureOffscreenDocument().then(() => sendResponse({ ok: true }));
     return true;
+  }
+
+  // Update cursor position from content script
+  if (message.type === 'CURSOR_MOVE') {
+    if (message.x !== undefined && message.y !== undefined) {
+      lastCursorPos.x = message.x;
+      lastCursorPos.y = message.y;
+    }
+    return false;
   }
 
   // Handle incoming gesture: PAN
@@ -142,7 +198,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   return false;
 });
 
-// Pan handling
+// Pan handling: Native Chromium Hardware Mouse Wheel
 async function handlePan(dx, dy) {
   const tab = await getActiveTab();
   if (!tab) return;
@@ -156,64 +212,75 @@ async function handlePan(dx, dy) {
   if (settings.invertX) finalDx = -finalDx;
   if (settings.invertY) finalDy = -finalDy;
 
+  // Try Native Hardware Wheel via Chromium Debugger
+  const isAttached = await ensureDebuggerAttached(tab.id);
+  if (isAttached) {
+    try {
+      // In CDP mouseWheel:
+      // Negative finalDy (drag finger up) -> positive deltaY (scroll down)
+      // Positive finalDy (drag finger down) -> negative deltaY (scroll up)
+      await chrome.debugger.sendCommand({ tabId: tab.id }, "Input.dispatchMouseEvent", {
+        type: "mouseWheel",
+        x: lastCursorPos.x,
+        y: lastCursorPos.y,
+        deltaX: Math.round(-finalDx),
+        deltaY: Math.round(-finalDy)
+      });
+      return;
+    } catch (e) {
+      attachedTabs.delete(tab.id);
+    }
+  }
+
+  // Resilient fallback to Content Script if debugger cannot attach
   chrome.tabs.sendMessage(tab.id, {
     action: 'APPLY_PAN',
     dx: finalDx,
     dy: finalDy
-  }).catch(() => {
-    // Tab might be in loading state or non-scriptable
-  });
+  }).catch(() => {});
 }
 
-// Zoom handling: Pure Visual Viewport Pinch Zoom by default
+// Zoom handling: Native Chromium Visual Viewport Pinch
 async function handleZoom(delta, scale) {
   const tab = await getActiveTab();
   if (!tab) return;
 
   const storage = await chrome.storage.local.get('scroll_settings');
   const settings = storage.scroll_settings || DEFAULT_SETTINGS;
-  const zoomMode = settings.zoomMode || 'visual';
-
   const adjustedDelta = delta * settings.zoomSensitivity;
 
-  // Visual mode (True continuous pinch-to-zoom in content script)
-  if (zoomMode === 'visual' || zoomMode === 'wheel') {
-    chrome.tabs.sendMessage(tab.id, {
-      action: 'APPLY_ZOOM',
-      delta: adjustedDelta,
-      scale: scale,
-      mode: zoomMode
-    }).catch(() => {});
-    return;
-  }
-
-  // Legacy page zoom mode (Ctrl + / - stepped layout zoom) only if explicitly enabled
-  if (zoomMode === 'page') {
+  // Try Native Chromium Visual Viewport Pinch Gesture
+  const isAttached = await ensureDebuggerAttached(tab.id);
+  if (isAttached) {
     try {
-      const currentZoom = await chrome.tabs.getZoom(tab.id);
-      let factor = 1 + (adjustedDelta * 0.12);
-      let targetZoom = currentZoom * factor;
-      targetZoom = Math.min(Math.max(targetZoom, 0.3), 3.0);
-      await chrome.tabs.setZoom(tab.id, targetZoom);
+      // Relative scale factor for the camera gesture (>1 zooms in, <1 zooms out)
+      const scaleFactor = Math.max(0.75, Math.min(1.0 + (adjustedDelta * 1.6), 1.45));
+      await chrome.debugger.sendCommand({ tabId: tab.id }, "Input.synthesizePinchGesture", {
+        x: lastCursorPos.x,
+        y: lastCursorPos.y,
+        scaleFactor: scaleFactor,
+        relativeSpeed: 1000,
+        gestureSourceType: "touch"
+      });
+      return;
     } catch (e) {
-      console.warn('Tab zoom error:', e);
+      attachedTabs.delete(tab.id);
     }
   }
+
+  // Resilient fallback to Content Script
+  chrome.tabs.sendMessage(tab.id, {
+    action: 'APPLY_ZOOM',
+    delta: adjustedDelta,
+    scale: scale,
+    mode: settings.zoomMode || 'visual'
+  }).catch(() => {});
 }
 
 // Reset Zoom
 async function handleResetZoom() {
   const tab = await getActiveTab();
   if (!tab) return;
-
-  const storage = await chrome.storage.local.get('scroll_settings');
-  const settings = storage.scroll_settings || DEFAULT_SETTINGS;
-
-  if (settings.zoomMode === 'page') {
-    try {
-      await chrome.tabs.setZoom(tab.id, 1.0);
-    } catch (e) {}
-  }
 
   chrome.tabs.sendMessage(tab.id, {
     action: 'RESET_ZOOM'

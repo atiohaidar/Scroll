@@ -23,7 +23,8 @@
     "activeTab",
     "tabs",
     "storage",
-    "offscreen"
+    "offscreen",
+    "debugger"
   ],
   "host_permissions": [
     "<all_urls>"
