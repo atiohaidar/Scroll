@@ -87,6 +87,7 @@ function handleConnection(conn) {
     console.log('[Scroll Offscreen] WebRTC DataChannel OPEN! Connected directly to mobile trackpad.');
     broadcastState('connected');
     startPingPong();
+    relayToBackground({ type: 'CMD_REQUEST_TABS' });
   });
 
   conn.on('data', (packet) => {
@@ -128,6 +129,16 @@ function handlePacket(packet) {
       relayToBackground({ type: 'GESTURE_ZOOM', delta, scale });
     } else if (type === 'reset_zoom') {
       relayToBackground({ type: 'GESTURE_RESET_ZOOM' });
+    } else if (type === 'switch_tab') {
+      // ['switch_tab', tabId]
+      relayToBackground({ type: 'CMD_SWITCH_TAB', tabId: packet[1] });
+    } else if (type === 'close_tab') {
+      // ['close_tab', tabId]
+      relayToBackground({ type: 'CMD_CLOSE_TAB', tabId: packet[1] });
+    } else if (type === 'new_tab') {
+      relayToBackground({ type: 'CMD_NEW_TAB' });
+    } else if (type === 'request_tabs') {
+      relayToBackground({ type: 'CMD_REQUEST_TABS' });
     } else if (type === 'pong') {
       // ['pong', sentTimestamp]
       const rtt = Date.now() - packet[1];
@@ -217,6 +228,13 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     initPeer(msg.customId);
     sendResponse({ ok: true });
     return true;
+  }
+
+  if (msg.type === 'BROADCAST_TABS') {
+    if (activeConnection && activeConnection.open) {
+      activeConnection.send(['tabs', msg.tabs]);
+    }
+    return false;
   }
 
   if (msg.type === 'DISCONNECT_ACTIVE') {

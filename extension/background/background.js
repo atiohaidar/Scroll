@@ -115,16 +115,38 @@ async function getActiveTab() {
 // Track active tab changes
 chrome.tabs.onActivated.addListener(async (activeInfo) => {
   cachedActiveTabId = activeInfo.tabId;
-  // Detach previous tabs to keep Chrome banner clean
-  for (const tid of attachedTabs) {
-    if (tid !== activeInfo.tabId) {
-      try {
-        await chrome.debugger.detach({ tabId: tid });
-      } catch (e) {}
-      attachedTabs.delete(tid);
-    }
+  broadcastTabs();
+});
+
+// Broadcast tabs list to offscreen/mobile
+async function getTabList() {
+  try {
+    const tabs = await chrome.tabs.query({ currentWindow: true });
+    return tabs.map(t => ({
+      id: t.id,
+      title: t.title || 'New Tab',
+      url: t.url || '',
+      favIconUrl: t.favIconUrl || '',
+      active: !!t.active
+    }));
+  } catch (e) {
+    return [];
+  }
+}
+
+async function broadcastTabs() {
+  const tabs = await getTabList();
+  chrome.runtime.sendMessage({ type: 'BROADCAST_TABS', tabs }).catch(() => {});
+}
+
+// Real-time tab lifecycle listeners
+chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
+  if (changeInfo.title || changeInfo.favIconUrl || changeInfo.status === 'complete') {
+    broadcastTabs();
   }
 });
+chrome.tabs.onCreated.addListener(broadcastTabs);
+chrome.tabs.onRemoved.addListener(broadcastTabs);
 
 // Message listener
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -132,6 +154,34 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'ENSURE_OFFSCREEN') {
     ensureOffscreenDocument().then(() => sendResponse({ ok: true }));
     return true;
+  }
+
+  // Mobile requested fresh tab list
+  if (message.type === 'CMD_REQUEST_TABS') {
+    broadcastTabs();
+    return false;
+  }
+
+  // Switch active tab
+  if (message.type === 'CMD_SWITCH_TAB') {
+    if (message.tabId) {
+      chrome.tabs.update(message.tabId, { active: true }).catch(() => {});
+    }
+    return false;
+  }
+
+  // Close tab
+  if (message.type === 'CMD_CLOSE_TAB') {
+    if (message.tabId) {
+      chrome.tabs.remove(message.tabId).catch(() => {});
+    }
+    return false;
+  }
+
+  // Create new tab
+  if (message.type === 'CMD_NEW_TAB') {
+    chrome.tabs.create({}).catch(() => {});
+    return false;
   }
 
   // Update cursor position from content script

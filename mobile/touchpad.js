@@ -21,6 +21,18 @@
   const manualCodeInput = document.getElementById('manual-code');
   const btnManualConnect = document.getElementById('btn-manual-connect');
 
+  // Tab Manager Elements
+  const btnTabs = document.getElementById('btn-tabs');
+  const tabCountBadge = document.getElementById('tab-count-badge');
+  const tabsStrip = document.getElementById('tabs-strip');
+  const tabsStripList = document.getElementById('tabs-strip-list');
+  const btnNewTabStrip = document.getElementById('btn-new-tab-strip');
+  const tabsDrawer = document.getElementById('tabs-drawer');
+  const drawerCount = document.getElementById('drawer-count');
+  const drawerTabsList = document.getElementById('drawer-tabs-list');
+  const btnNewTabDrawer = document.getElementById('btn-new-tab-drawer');
+  const btnCloseDrawer = document.getElementById('btn-close-drawer');
+
   // State
   let peer = null;
   let conn = null;
@@ -29,6 +41,7 @@
   let hapticEnabled = true;
   let speedMultiplier = 1.4;
   let currentZoomScale = 1.0;
+  let openTabs = [];
 
   // Active touches map: identifier -> { x, y, lastX, lastY, vx, vy, time }
   const activeTouches = new Map();
@@ -125,6 +138,7 @@
         isConnected = true;
         updateStatus('connected', 'Connected');
         triggerHaptic(20);
+        sendPacket(['request_tabs']);
       });
 
       conn.on('data', (packet) => {
@@ -138,6 +152,9 @@
           }
         } else if (type === 'latency') {
           latencyLabel.textContent = `${packet[1]} ms`;
+        } else if (type === 'tabs') {
+          openTabs = packet[1] || [];
+          renderTabsUI(openTabs);
         }
       });
 
@@ -402,6 +419,147 @@
   }
 
   // --- UI Controls ---
+
+  // Default globe favicon SVG for tabs without icon
+  const DEFAULT_FAVICON = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="%238E8E93" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>';
+
+  function renderTabsUI(tabs) {
+    if (!Array.isArray(tabs)) return;
+
+    // Badges
+    if (tabCountBadge) tabCountBadge.textContent = tabs.length;
+    if (drawerCount) drawerCount.textContent = `${tabs.length} open tab${tabs.length === 1 ? '' : 's'}`;
+
+    // Render Quick Strip
+    if (tabsStripList) {
+      tabsStripList.innerHTML = '';
+      tabs.forEach(tab => {
+        const pill = document.createElement('div');
+        pill.className = `tab-strip-pill ${tab.active ? 'active' : ''}`;
+        pill.title = tab.title;
+
+        const img = document.createElement('img');
+        img.className = 'tab-strip-favicon';
+        img.src = tab.favIconUrl || DEFAULT_FAVICON;
+        img.onerror = () => { img.src = DEFAULT_FAVICON; };
+        pill.appendChild(img);
+
+        const span = document.createElement('span');
+        span.className = 'tab-strip-title';
+        span.textContent = tab.title || 'Untitled';
+        pill.appendChild(span);
+
+        const closeBtn = document.createElement('button');
+        closeBtn.className = 'tab-strip-close';
+        closeBtn.innerHTML = '&#215;';
+        closeBtn.title = 'Close Tab';
+        closeBtn.onclick = (e) => {
+          e.stopPropagation();
+          sendPacket(['close_tab', tab.id]);
+          triggerHaptic(8);
+        };
+        pill.appendChild(closeBtn);
+
+        pill.onclick = () => {
+          sendPacket(['switch_tab', tab.id]);
+          triggerHaptic(12);
+        };
+
+        tabsStripList.appendChild(pill);
+      });
+    }
+
+    // Render Expanded Drawer List
+    if (drawerTabsList) {
+      drawerTabsList.innerHTML = '';
+      tabs.forEach(tab => {
+        const item = document.createElement('div');
+        item.className = `drawer-item ${tab.active ? 'active' : ''}`;
+
+        const img = document.createElement('img');
+        img.className = 'drawer-item-fav';
+        img.src = tab.favIconUrl || DEFAULT_FAVICON;
+        img.onerror = () => { img.src = DEFAULT_FAVICON; };
+        item.appendChild(img);
+
+        const info = document.createElement('div');
+        info.className = 'drawer-item-info';
+
+        const title = document.createElement('span');
+        title.className = 'drawer-item-title';
+        title.textContent = tab.title || 'Untitled';
+        info.appendChild(title);
+
+        if (tab.url) {
+          const urlSpan = document.createElement('span');
+          urlSpan.className = 'drawer-item-url';
+          try {
+            const parsed = new URL(tab.url);
+            urlSpan.textContent = parsed.hostname + (parsed.pathname === '/' ? '' : parsed.pathname);
+          } catch (e) {
+            urlSpan.textContent = tab.url;
+          }
+          info.appendChild(urlSpan);
+        }
+
+        item.appendChild(info);
+
+        const closeBtn = document.createElement('button');
+        closeBtn.className = 'drawer-item-close';
+        closeBtn.innerHTML = `
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        `;
+        closeBtn.title = 'Close tab';
+        closeBtn.onclick = (e) => {
+          e.stopPropagation();
+          sendPacket(['close_tab', tab.id]);
+          triggerHaptic(8);
+        };
+        item.appendChild(closeBtn);
+
+        item.onclick = () => {
+          sendPacket(['switch_tab', tab.id]);
+          if (tabsDrawer) tabsDrawer.classList.add('hidden');
+          triggerHaptic(12);
+        };
+
+        drawerTabsList.appendChild(item);
+      });
+    }
+  }
+
+  // Tab Drawer Toggle Handlers
+  if (btnTabs) {
+    btnTabs.addEventListener('click', () => {
+      if (tabsDrawer) tabsDrawer.classList.toggle('hidden');
+      triggerHaptic(8);
+    });
+  }
+
+  if (btnCloseDrawer) {
+    btnCloseDrawer.addEventListener('click', () => {
+      if (tabsDrawer) tabsDrawer.classList.add('hidden');
+      triggerHaptic(6);
+    });
+  }
+
+  if (btnNewTabStrip) {
+    btnNewTabStrip.addEventListener('click', () => {
+      sendPacket(['new_tab']);
+      triggerHaptic(15);
+    });
+  }
+
+  if (btnNewTabDrawer) {
+    btnNewTabDrawer.addEventListener('click', () => {
+      sendPacket(['new_tab']);
+      if (tabsDrawer) tabsDrawer.classList.add('hidden');
+      triggerHaptic(15);
+    });
+  }
 
   // Reset Zoom
   btnResetZoom.addEventListener('click', () => {

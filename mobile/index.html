@@ -23,6 +23,15 @@
       </div>
 
       <div class="hud-actions">
+        <button id="btn-tabs" class="hud-btn" title="View Open Tabs">
+          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="7" height="7" rx="1.5" />
+            <rect x="14" y="3" width="7" height="7" rx="1.5" />
+            <rect x="14" y="14" width="7" height="7" rx="1.5" />
+            <rect x="3" y="14" width="7" height="7" rx="1.5" />
+          </svg>
+          <span id="tab-count-badge" class="tab-badge">0</span>
+        </button>
         <button id="btn-reset-zoom" class="hud-btn" title="Reset Zoom to 100%">
           <span>100%</span>
         </button>
@@ -33,6 +42,19 @@
         </button>
       </div>
     </header>
+
+    <!-- Horizontal Tab Strip for Quick 1-Thumb Switching -->
+    <nav id="tabs-strip" class="tabs-strip">
+      <div id="tabs-strip-list" class="tabs-strip-inner">
+        <!-- Injected dynamically -->
+      </div>
+      <button id="btn-new-tab-strip" class="strip-new-tab-btn" title="New Tab">
+        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5">
+          <line x1="12" y1="5" x2="12" y2="19" stroke-linecap="round" />
+          <line x1="5" y1="12" x2="19" y2="12" stroke-linecap="round" />
+        </svg>
+      </button>
+    </nav>
 
     <!-- Main Recessed Trackpad Surface -->
     <main id="trackpad" class="trackpad-surface">
@@ -67,6 +89,31 @@
         <button class="speed-btn" data-speed="2.0">2.0x</button>
       </div>
     </footer>
+
+    <!-- Expanded Tabs Drawer Modal -->
+    <div id="tabs-drawer" class="modal-overlay hidden">
+      <div class="modal-card drawer-card">
+        <div class="drawer-header">
+          <div class="drawer-title-group">
+            <h2 class="drawer-title">Open Tabs</h2>
+            <span id="drawer-count" class="drawer-count">0 tabs</span>
+          </div>
+          <div class="drawer-actions">
+            <button id="btn-new-tab-drawer" class="hud-btn-subtle" title="New Tab">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5">
+                <line x1="12" y1="5" x2="12" y2="19" stroke-linecap="round" />
+                <line x1="5" y1="12" x2="19" y2="12" stroke-linecap="round" />
+              </svg>
+              <span>New</span>
+            </button>
+            <button id="btn-close-drawer" class="btn-text-done">Done</button>
+          </div>
+        </div>
+        <div id="drawer-tabs-list" class="drawer-list">
+          <!-- Injected dynamically -->
+        </div>
+      </div>
+    </div>
 
     <!-- Manual Pairing Modal (Hidden if query param exists) -->
     <div id="pair-modal" class="modal-overlay hidden">
