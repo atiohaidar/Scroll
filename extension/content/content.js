@@ -95,21 +95,15 @@
     return window;
   }
 
-  // --- Camera Lens Viewport Zoom Engine ---
+  // --- Full-Document Continuous Zoom Engine ---
   let targetScale = 1.0;
   let currentScale = 1.0;
   let zoomRafId = null;
-  let zoomFocalX = window.innerWidth / 2;
-  let zoomFocalY = window.innerHeight / 2;
 
-  // Handle Pinch to Zoom (True optical camera zoom centered at cursor)
+  // Handle Pinch to Zoom (Scales full document so scrolling reaches top-to-bottom seamlessly)
   function handleZoom(delta, scale) {
-    // Always anchor to exact cursor position
-    zoomFocalX = lastMouseX || (window.innerWidth / 2);
-    zoomFocalY = lastMouseY || (window.innerHeight / 2);
-
-    const zoomFactor = 1 + (delta * 1.5);
-    targetScale = Math.min(Math.max(targetScale * zoomFactor, 1.0), 3.5);
+    const zoomFactor = 1 + (delta * 1.4);
+    targetScale = Math.min(Math.max(targetScale * zoomFactor, 1.0), 3.0);
 
     if (targetScale <= 1.015) {
       targetScale = 1.0;
@@ -124,24 +118,25 @@
     // Silky smooth exponential interpolation (0.35 per frame)
     currentScale += (targetScale - currentScale) * 0.35;
 
-    if (Math.abs(targetScale - currentScale) < 0.004) {
+    if (Math.abs(targetScale - currentScale) < 0.005) {
       currentScale = targetScale;
     }
 
-    if (currentScale <= 1.01) {
+    if (currentScale <= 1.015) {
       currentScale = 1.0;
       targetScale = 1.0;
+      document.documentElement.style.zoom = '';
       document.body.style.transform = '';
       document.body.style.transformOrigin = '';
-      document.body.style.transition = '';
       zoomRafId = null;
       showHud('Zoom', '100%');
       return;
     }
 
-    // Camera lens zoom: hardware-accelerated scale centered directly at the focal point!
-    document.body.style.transformOrigin = `${zoomFocalX}px ${zoomFocalY}px`;
-    document.body.style.transform = `scale(${currentScale.toFixed(4)})`;
+    // Expand full document scale: Entire page remains scrollable to the very top and very bottom!
+    document.documentElement.style.zoom = currentScale.toFixed(3);
+    document.body.style.transform = '';
+    document.body.style.transformOrigin = '';
 
     showHud('Zoom', `${Math.round(currentScale * 100)}%`);
 
@@ -155,17 +150,15 @@
   // Reset Zoom
   function resetVisualZoom() {
     targetScale = 1.0;
-    document.body.style.transition = 'transform 0.2s cubic-bezier(0.16, 1, 0.3, 1)';
-    document.body.style.transform = 'scale(1)';
-    setTimeout(() => {
-      currentScale = 1.0;
-      targetScale = 1.0;
-      document.body.style.transform = '';
-      document.body.style.transformOrigin = '';
-      document.body.style.transition = '';
+    currentScale = 1.0;
+    document.documentElement.style.zoom = '';
+    document.body.style.transform = '';
+    document.body.style.transformOrigin = '';
+    if (zoomRafId) {
+      cancelAnimationFrame(zoomRafId);
       zoomRafId = null;
-      showHud('Zoom', '100%');
-    }, 210);
+    }
+    showHud('Zoom', '100%');
   }
 
   // HUD Indicator Element
