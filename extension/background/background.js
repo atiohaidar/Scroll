@@ -13,7 +13,7 @@ const DEFAULT_SETTINGS = {
   invertY: false,
   enableMomentum: true,
   momentumStrength: 0.94,
-  zoomMode: 'hybrid', // 'hybrid' | 'native' | 'wheel'
+  zoomMode: 'visual', // 'visual' (true GPU pinch-to-zoom) | 'wheel' (canvas apps) | 'page' (browser Ctrl+/-)
   hapticFeedback: true
 };
 
@@ -51,6 +51,10 @@ chrome.runtime.onInstalled.addListener(async () => {
   const stored = await chrome.storage.local.get('scroll_settings');
   if (!stored.scroll_settings) {
     await chrome.storage.local.set({ scroll_settings: DEFAULT_SETTINGS });
+  } else if (!stored.scroll_settings.zoomMode || stored.scroll_settings.zoomMode === 'hybrid') {
+    // Migrate to visual mode for true pinch to zoom
+    const updated = { ...stored.scroll_settings, zoomMode: 'visual' };
+    await chrome.storage.local.set({ scroll_settings: updated });
   }
   await ensureOffscreenDocument();
 });
@@ -131,39 +135,39 @@ async function handlePan(dx, dy) {
   });
 }
 
-// Zoom handling
+// Zoom handling: Pure Visual Viewport Pinch Zoom by default
 async function handleZoom(delta, scale) {
   const tab = await getActiveTab();
   if (!tab) return;
 
   const storage = await chrome.storage.local.get('scroll_settings');
   const settings = storage.scroll_settings || DEFAULT_SETTINGS;
-  const zoomMode = settings.zoomMode || 'hybrid';
+  const zoomMode = settings.zoomMode || 'visual';
 
   const adjustedDelta = delta * settings.zoomSensitivity;
 
-  // Hybrid or native mode adjusts chrome.tabs zoom
-  if (zoomMode === 'hybrid' || zoomMode === 'native') {
+  // Visual mode (True continuous pinch-to-zoom in content script)
+  if (zoomMode === 'visual' || zoomMode === 'wheel') {
+    chrome.tabs.sendMessage(tab.id, {
+      action: 'APPLY_ZOOM',
+      delta: adjustedDelta,
+      scale: scale,
+      mode: zoomMode
+    }).catch(() => {});
+    return;
+  }
+
+  // Legacy page zoom mode (Ctrl + / - stepped layout zoom) only if explicitly enabled
+  if (zoomMode === 'page') {
     try {
       const currentZoom = await chrome.tabs.getZoom(tab.id);
-      // Smooth logarithmic/linear fractional step
       let factor = 1 + (adjustedDelta * 0.12);
       let targetZoom = currentZoom * factor;
-      // Clamp between 0.3 (30%) and 3.0 (300%)
       targetZoom = Math.min(Math.max(targetZoom, 0.3), 3.0);
       await chrome.tabs.setZoom(tab.id, targetZoom);
     } catch (e) {
       console.warn('Tab zoom error:', e);
     }
-  }
-
-  // Forward to content script for synthetic wheel / canvas / maps zoom
-  if (zoomMode === 'hybrid' || zoomMode === 'wheel') {
-    chrome.tabs.sendMessage(tab.id, {
-      action: 'APPLY_ZOOM',
-      delta: adjustedDelta,
-      scale: scale
-    }).catch(() => {});
   }
 }
 
@@ -172,9 +176,14 @@ async function handleResetZoom() {
   const tab = await getActiveTab();
   if (!tab) return;
 
-  try {
-    await chrome.tabs.setZoom(tab.id, 1.0);
-  } catch (e) {}
+  const storage = await chrome.storage.local.get('scroll_settings');
+  const settings = storage.scroll_settings || DEFAULT_SETTINGS;
+
+  if (settings.zoomMode === 'page') {
+    try {
+      await chrome.tabs.setZoom(tab.id, 1.0);
+    } catch (e) {}
+  }
 
   chrome.tabs.sendMessage(tab.id, {
     action: 'RESET_ZOOM'

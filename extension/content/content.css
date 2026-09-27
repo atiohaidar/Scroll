@@ -43,3 +43,10 @@
   font-size: 12px;
   color: #374151;
 }
+
+/* Page lock during active hardware-accelerated visual viewport zoom */
+html.__scroll_zoomed__ {
+  overflow: hidden !important;
+  touch-action: none !important;
+}
+

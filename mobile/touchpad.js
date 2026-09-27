@@ -261,16 +261,16 @@
       const currentDist = Math.hypot(touches[0].x - touches[1].x, touches[0].y - touches[1].y);
       const distDelta = currentDist - lastPinchDistance;
 
-      if (Math.abs(distDelta) > 0.5) {
-        // Normalized zoom delta
-        const delta = (distDelta / 120) * speedMultiplier;
+      if (Math.abs(distDelta) > 0.4) {
+        // Normalized zoom delta (smooth & proportional)
+        const delta = (distDelta / 140) * speedMultiplier;
 
         const prevScale = currentZoomScale;
-        currentZoomScale = Math.min(Math.max(currentZoomScale * (1 + delta * 0.1), 0.3), 3.0);
+        currentZoomScale = Math.min(Math.max(currentZoomScale * (1 + delta), 1.0), 5.0);
 
         // Haptic feedback when crossing 100% boundary
-        if ((prevScale < 1.0 && currentZoomScale >= 1.0) || (prevScale > 1.0 && currentZoomScale <= 1.0)) {
-          triggerHaptic(15);
+        if ((prevScale <= 1.02 && currentZoomScale > 1.02) || (prevScale >= 1.02 && currentZoomScale <= 1.02)) {
+          triggerHaptic(18);
         }
 
         sendPacket(['zoom', delta, currentZoomScale]);

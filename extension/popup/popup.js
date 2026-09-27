@@ -23,7 +23,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const btnEditHost = document.getElementById('btn-edit-host');
 
   let currentPeerId = null;
-  let mobileBaseUrl = 'http://localhost:3000'; // Default local development server
+  let mobileBaseUrl = 'https://atiohaidar.github.io/Scroll/mobile'; // Default to hosted mobile client
 
   // Load stored settings & state
   const storage = await chrome.storage.local.get([
