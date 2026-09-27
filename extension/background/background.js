@@ -9,6 +9,7 @@ const OFFSCREEN_DOCUMENT_PATH = 'offscreen/offscreen.html';
 const DEFAULT_SETTINGS = {
   panSensitivity: 1.2,
   zoomSensitivity: 1.0,
+  naturalScroll: true,
   invertX: false,
   invertY: false,
   enableMomentum: true,
@@ -16,6 +17,22 @@ const DEFAULT_SETTINGS = {
   zoomMode: 'visual', // 'visual' (true GPU pinch-to-zoom) | 'wheel' (canvas apps) | 'page' (browser Ctrl+/-)
   hapticFeedback: true
 };
+
+// In-memory cached settings for zero-latency 60-120fps streaming
+let currentSettings = { ...DEFAULT_SETTINGS };
+
+chrome.storage.local.get('scroll_settings').then((stored) => {
+  if (stored && stored.scroll_settings) {
+    currentSettings = { ...DEFAULT_SETTINGS, ...stored.scroll_settings };
+  }
+});
+
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === 'local' && changes.scroll_settings) {
+    currentSettings = { ...DEFAULT_SETTINGS, ...(changes.scroll_settings.newValue || {}) };
+    broadcastSettings();
+  }
+});
 
 // In-flight mutex promise to prevent concurrent createDocument race conditions
 let creatingOffscreenPromise = null;
@@ -148,6 +165,23 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
 chrome.tabs.onCreated.addListener(broadcastTabs);
 chrome.tabs.onRemoved.addListener(broadcastTabs);
 
+// Broadcast settings to offscreen and popup
+async function updateSetting(key, value) {
+  const stored = await chrome.storage.local.get('scroll_settings');
+  const settings = stored.scroll_settings || { ...DEFAULT_SETTINGS };
+  settings[key] = value;
+  currentSettings = { ...settings };
+  await chrome.storage.local.set({ scroll_settings: settings });
+  broadcastSettings();
+}
+
+function broadcastSettings() {
+  chrome.runtime.sendMessage({
+    type: 'BROADCAST_SETTINGS',
+    settings: currentSettings
+  }).catch(() => {});
+}
+
 // Message listener
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   // If offscreen or popup wants to wake up or check state
@@ -159,6 +193,25 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   // Mobile requested fresh tab list
   if (message.type === 'CMD_REQUEST_TABS') {
     broadcastTabs();
+    return false;
+  }
+
+  // Settings sync requests
+  if (message.type === 'CMD_REQUEST_SETTINGS') {
+    broadcastSettings();
+    return false;
+  }
+
+  if (message.type === 'CMD_SET_NATURAL_SCROLL') {
+    updateSetting('naturalScroll', !!message.naturalScroll);
+    return false;
+  }
+
+  if (message.type === 'SETTINGS_UPDATED') {
+    if (message.settings) {
+      currentSettings = { ...DEFAULT_SETTINGS, ...message.settings };
+      broadcastSettings();
+    }
     return false;
   }
 
@@ -215,50 +268,73 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 });
 
 // Pan handling: Dispatches smooth trackpad pan to active tab
-async function handlePan(dx, dy) {
-  const tab = await getActiveTab();
-  if (!tab) return;
+function handlePan(dx, dy) {
+  const tabId = cachedActiveTabId;
+  if (!tabId) {
+    getActiveTab().then((tab) => {
+      if (tab) dispatchPan(tab.id, dx, dy);
+    });
+    return;
+  }
+  dispatchPan(tabId, dx, dy);
+}
 
-  const storage = await chrome.storage.local.get('scroll_settings');
-  const settings = storage.scroll_settings || DEFAULT_SETTINGS;
+function dispatchPan(tabId, dx, dy) {
+  const isNatural = currentSettings.naturalScroll !== false;
 
-  let finalDx = dx * settings.panSensitivity;
-  let finalDy = dy * settings.panSensitivity;
+  // Natural scroll: dragging finger UP (dy < 0) moves page content UP -> scrolls viewport DOWN (finalDy > 0)
+  // Traditional scroll: dragging finger UP (dy < 0) scrolls viewport UP (finalDy < 0)
+  const sensitivity = currentSettings.panSensitivity || 1.2;
+  let finalDx = (isNatural ? -dx : dx) * sensitivity;
+  let finalDy = (isNatural ? -dy : dy) * sensitivity;
 
-  if (settings.invertX) finalDx = -finalDx;
-  if (settings.invertY) finalDy = -finalDy;
+  if (currentSettings.invertX) finalDx = -finalDx;
+  if (currentSettings.invertY) finalDy = -finalDy;
 
-  chrome.tabs.sendMessage(tab.id, {
+  chrome.tabs.sendMessage(tabId, {
     action: 'APPLY_PAN',
     dx: finalDx,
     dy: finalDy
-  }).catch(() => {});
+  }).catch(() => {
+    getActiveTab();
+  });
 }
 
 // Zoom handling: Dispatches camera lens zoom to active tab
-async function handleZoom(delta, scale) {
-  const tab = await getActiveTab();
-  if (!tab) return;
+function handleZoom(delta, scale) {
+  const tabId = cachedActiveTabId;
+  if (!tabId) {
+    getActiveTab().then((tab) => {
+      if (tab) dispatchZoom(tab.id, delta, scale);
+    });
+    return;
+  }
+  dispatchZoom(tabId, delta, scale);
+}
 
-  const storage = await chrome.storage.local.get('scroll_settings');
-  const settings = storage.scroll_settings || DEFAULT_SETTINGS;
-  const adjustedDelta = delta * settings.zoomSensitivity;
+function dispatchZoom(tabId, delta, scale) {
+  const sensitivity = currentSettings.zoomSensitivity || 1.0;
+  const adjustedDelta = delta * sensitivity;
 
-  chrome.tabs.sendMessage(tab.id, {
+  chrome.tabs.sendMessage(tabId, {
     action: 'APPLY_ZOOM',
     delta: adjustedDelta,
     scale: scale
-  }).catch(() => {});
+  }).catch(() => {
+    getActiveTab();
+  });
 }
 
 // Reset Zoom
-async function handleResetZoom() {
-  const tab = await getActiveTab();
-  if (!tab) return;
-
-  chrome.tabs.sendMessage(tab.id, {
-    action: 'RESET_ZOOM'
-  }).catch(() => {});
+function handleResetZoom() {
+  const tabId = cachedActiveTabId;
+  if (!tabId) {
+    getActiveTab().then((tab) => {
+      if (tab) chrome.tabs.sendMessage(tab.id, { action: 'RESET_ZOOM' }).catch(() => {});
+    });
+    return;
+  }
+  chrome.tabs.sendMessage(tabId, { action: 'RESET_ZOOM' }).catch(() => {});
 }
 
 // Initial guarantee

@@ -77,12 +77,18 @@ document.addEventListener('DOMContentLoaded', async () => {
       zoomSlider.value = s.zoomSensitivity;
       zoomVal.textContent = `${Number(s.zoomSensitivity).toFixed(1)}x`;
     }
-    if (s.invertY !== undefined) {
+    if (s.naturalScroll !== undefined) {
+      naturalScrollCheck.checked = !!s.naturalScroll;
+    } else if (s.invertY !== undefined) {
       naturalScrollCheck.checked = !s.invertY;
+    } else {
+      naturalScrollCheck.checked = true;
     }
     if (s.enableMomentum !== undefined) {
       momentumCheck.checked = s.enableMomentum;
     }
+  } else {
+    naturalScrollCheck.checked = true;
   }
 
   // Initial State from storage
@@ -112,6 +118,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       updateStatusDisplay(msg.status, msg.latency);
     } else if (msg.type === 'LATENCY_UPDATE') {
       updateLatency(msg.latency);
+    } else if (msg.type === 'BROADCAST_SETTINGS' && msg.settings) {
+      if (msg.settings.naturalScroll !== undefined) {
+        naturalScrollCheck.checked = !!msg.settings.naturalScroll;
+      }
     }
   });
 
@@ -188,10 +198,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 
   naturalScrollCheck.addEventListener('change', (e) => {
-    const isNatural = e.target.checked;
-    // In natural scrolling, dragging finger up moves content down
-    saveSetting('invertY', !isNatural);
-    saveSetting('invertX', !isNatural);
+    saveSetting('naturalScroll', e.target.checked);
   });
 
   momentumCheck.addEventListener('change', (e) => {
@@ -203,6 +210,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const settings = stored.scroll_settings || {};
     settings[key] = value;
     await chrome.storage.local.set({ scroll_settings: settings });
+    chrome.runtime.sendMessage({ type: 'SETTINGS_UPDATED', settings }).catch(() => {});
   }
 
   // Copy URL button

@@ -14,6 +14,8 @@
   const statusLabel = document.getElementById('status-label');
   const latencyLabel = document.getElementById('latency-label');
   const gestureModeBadge = document.getElementById('gesture-mode');
+  const btnScrollDir = document.getElementById('btn-scroll-dir');
+  const scrollDirText = document.getElementById('scroll-dir-text');
   const btnResetZoom = document.getElementById('btn-reset-zoom');
   const btnHaptic = document.getElementById('btn-haptic');
   const speedButtons = document.querySelectorAll('.speed-btn');
@@ -42,6 +44,7 @@
   let speedMultiplier = 1.4;
   let currentZoomScale = 1.0;
   let openTabs = [];
+  let isNaturalScroll = localStorage.getItem('scroll_natural') !== '0'; // default true
 
   // Active touches map: identifier -> { x, y, lastX, lastY, vx, vy, time }
   const activeTouches = new Map();
@@ -61,6 +64,23 @@
       } catch (e) {}
     }
   }
+
+  // Update Natural Scroll UI state
+  function updateScrollDirUI() {
+    if (scrollDirText) {
+      scrollDirText.textContent = isNaturalScroll ? 'Nat ↕' : 'Wheel ↕';
+    }
+    if (btnScrollDir) {
+      if (isNaturalScroll) {
+        btnScrollDir.classList.add('active');
+        btnScrollDir.title = 'Scroll: Natural (Finger moves content)';
+      } else {
+        btnScrollDir.classList.remove('active');
+        btnScrollDir.title = 'Scroll: Wheel / Inverted (Traditional)';
+      }
+    }
+  }
+  updateScrollDirUI();
 
   // --- Network & WebRTC Connection ---
 
@@ -139,6 +159,8 @@
         updateStatus('connected', 'Connected');
         triggerHaptic(20);
         sendPacket(['request_tabs']);
+        sendPacket(['request_settings']);
+        sendPacket(['set_natural_scroll', isNaturalScroll]);
       });
 
       conn.on('data', (packet) => {
@@ -155,6 +177,13 @@
         } else if (type === 'tabs') {
           openTabs = packet[1] || [];
           renderTabsUI(openTabs);
+        } else if (type === 'settings') {
+          const s = packet[1];
+          if (s && s.naturalScroll !== undefined) {
+            isNaturalScroll = !!s.naturalScroll;
+            localStorage.setItem('scroll_natural', isNaturalScroll ? '1' : '0');
+            updateScrollDirUI();
+          }
         }
       });
 
@@ -558,6 +587,17 @@
       sendPacket(['new_tab']);
       if (tabsDrawer) tabsDrawer.classList.add('hidden');
       triggerHaptic(15);
+    });
+  }
+
+  // Natural Scroll Direction Toggle
+  if (btnScrollDir) {
+    btnScrollDir.addEventListener('click', () => {
+      isNaturalScroll = !isNaturalScroll;
+      localStorage.setItem('scroll_natural', isNaturalScroll ? '1' : '0');
+      updateScrollDirUI();
+      triggerHaptic(18);
+      sendPacket(['set_natural_scroll', isNaturalScroll]);
     });
   }
 

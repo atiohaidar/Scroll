@@ -88,6 +88,7 @@ function handleConnection(conn) {
     broadcastState('connected');
     startPingPong();
     relayToBackground({ type: 'CMD_REQUEST_TABS' });
+    relayToBackground({ type: 'CMD_REQUEST_SETTINGS' });
   });
 
   conn.on('data', (packet) => {
@@ -139,6 +140,10 @@ function handlePacket(packet) {
       relayToBackground({ type: 'CMD_NEW_TAB' });
     } else if (type === 'request_tabs') {
       relayToBackground({ type: 'CMD_REQUEST_TABS' });
+    } else if (type === 'request_settings') {
+      relayToBackground({ type: 'CMD_REQUEST_SETTINGS' });
+    } else if (type === 'set_natural_scroll') {
+      relayToBackground({ type: 'CMD_SET_NATURAL_SCROLL', naturalScroll: !!packet[1] });
     } else if (type === 'pong') {
       // ['pong', sentTimestamp]
       const rtt = Date.now() - packet[1];
@@ -233,6 +238,13 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg.type === 'BROADCAST_TABS') {
     if (activeConnection && activeConnection.open) {
       activeConnection.send(['tabs', msg.tabs]);
+    }
+    return false;
+  }
+
+  if (msg.type === 'BROADCAST_SETTINGS') {
+    if (activeConnection && activeConnection.open) {
+      activeConnection.send(['settings', msg.settings]);
     }
     return false;
   }
