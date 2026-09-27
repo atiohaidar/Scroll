@@ -100,40 +100,6 @@ let cachedActiveTabId = null;
 // Track cursor coordinates for hardware-accurate focal point
 let lastCursorPos = { x: 600, y: 400 };
 
-// Native Chromium CDP Debugger Manager
-const attachedTabs = new Set();
-let attachingTabPromise = null;
-
-async function ensureDebuggerAttached(tabId) {
-  if (attachedTabs.has(tabId)) return true;
-
-  if (attachingTabPromise) {
-    return await attachingTabPromise;
-  }
-
-  attachingTabPromise = (async () => {
-    try {
-      await chrome.debugger.attach({ tabId }, "1.3");
-      attachedTabs.add(tabId);
-      console.log('[Scroll Debugger] Attached to tab for native hardware gestures:', tabId);
-      return true;
-    } catch (err) {
-      // User may have dismissed or tab is restricted (e.g. chrome://)
-      return false;
-    } finally {
-      attachingTabPromise = null;
-    }
-  })();
-
-  return await attachingTabPromise;
-}
-
-chrome.debugger.onDetach.addListener((source, reason) => {
-  if (source && source.tabId) {
-    attachedTabs.delete(source.tabId);
-    console.log('[Scroll Debugger] Detached from tab:', source.tabId, reason);
-  }
-});
 
 async function getActiveTab() {
   try {
@@ -198,7 +164,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   return false;
 });
 
-// Pan handling: Native Chromium Hardware Mouse Wheel
+// Pan handling: Dispatches smooth trackpad pan to active tab
 async function handlePan(dx, dy) {
   const tab = await getActiveTab();
   if (!tab) return;
@@ -212,27 +178,6 @@ async function handlePan(dx, dy) {
   if (settings.invertX) finalDx = -finalDx;
   if (settings.invertY) finalDy = -finalDy;
 
-  // Try Native Hardware Wheel via Chromium Debugger
-  const isAttached = await ensureDebuggerAttached(tab.id);
-  if (isAttached) {
-    try {
-      // In CDP mouseWheel:
-      // Negative finalDy (drag finger up) -> positive deltaY (scroll down)
-      // Positive finalDy (drag finger down) -> negative deltaY (scroll up)
-      await chrome.debugger.sendCommand({ tabId: tab.id }, "Input.dispatchMouseEvent", {
-        type: "mouseWheel",
-        x: lastCursorPos.x,
-        y: lastCursorPos.y,
-        deltaX: Math.round(-finalDx),
-        deltaY: Math.round(-finalDy)
-      });
-      return;
-    } catch (e) {
-      attachedTabs.delete(tab.id);
-    }
-  }
-
-  // Resilient fallback to Content Script if debugger cannot attach
   chrome.tabs.sendMessage(tab.id, {
     action: 'APPLY_PAN',
     dx: finalDx,
@@ -240,7 +185,7 @@ async function handlePan(dx, dy) {
   }).catch(() => {});
 }
 
-// Zoom handling: Native Chromium Visual Viewport Pinch
+// Zoom handling: Dispatches camera lens zoom to active tab
 async function handleZoom(delta, scale) {
   const tab = await getActiveTab();
   if (!tab) return;
@@ -249,31 +194,10 @@ async function handleZoom(delta, scale) {
   const settings = storage.scroll_settings || DEFAULT_SETTINGS;
   const adjustedDelta = delta * settings.zoomSensitivity;
 
-  // Try Native Chromium Visual Viewport Pinch Gesture
-  const isAttached = await ensureDebuggerAttached(tab.id);
-  if (isAttached) {
-    try {
-      // Relative scale factor for the camera gesture (>1 zooms in, <1 zooms out)
-      const scaleFactor = Math.max(0.75, Math.min(1.0 + (adjustedDelta * 1.6), 1.45));
-      await chrome.debugger.sendCommand({ tabId: tab.id }, "Input.synthesizePinchGesture", {
-        x: lastCursorPos.x,
-        y: lastCursorPos.y,
-        scaleFactor: scaleFactor,
-        relativeSpeed: 1000,
-        gestureSourceType: "touch"
-      });
-      return;
-    } catch (e) {
-      attachedTabs.delete(tab.id);
-    }
-  }
-
-  // Resilient fallback to Content Script
   chrome.tabs.sendMessage(tab.id, {
     action: 'APPLY_ZOOM',
     delta: adjustedDelta,
-    scale: scale,
-    mode: settings.zoomMode || 'visual'
+    scale: scale
   }).catch(() => {});
 }
 

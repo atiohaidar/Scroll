@@ -95,71 +95,77 @@
     return window;
   }
 
-  // Handle Pinch to Zoom while 100% preserving native scrollbars and vector clarity
-  function handleZoom(delta, scale, mode) {
-    // Check if user is hovering over an interactive web canvas (Google Maps, Figma, Leaflet)
-    const isCanvasApp = hoveredElement && (
-      hoveredElement.tagName === 'CANVAS' ||
-      hoveredElement.closest('canvas, .mapboxgl-map, .leaflet-container, [data-canvas]')
-    );
+  // --- Camera Lens Viewport Zoom Engine ---
+  let targetScale = 1.0;
+  let currentScale = 1.0;
+  let zoomRafId = null;
+  let zoomFocalX = window.innerWidth / 2;
+  let zoomFocalY = window.innerHeight / 2;
 
-    if (mode === 'wheel' || (isCanvasApp && visualScale <= 1.01)) {
-      const targetX = lastMouseX || (window.innerWidth / 2);
-      const targetY = lastMouseY || (window.innerHeight / 2);
-      const targetEl = hoveredElement || document.elementFromPoint(targetX, targetY) || document.body;
+  // Handle Pinch to Zoom (True optical camera zoom centered at cursor)
+  function handleZoom(delta, scale) {
+    // Always anchor to exact cursor position
+    zoomFocalX = lastMouseX || (window.innerWidth / 2);
+    zoomFocalY = lastMouseY || (window.innerHeight / 2);
 
-      const wheelEvent = new WheelEvent('wheel', {
-        bubbles: true,
-        cancelable: true,
-        view: window,
-        ctrlKey: true,
-        deltaY: -delta * 120,
-        clientX: targetX,
-        clientY: targetY
-      });
-      targetEl.dispatchEvent(wheelEvent);
-      showHud('Canvas Zoom', `${Math.round((scale || 1) * 100)}%`);
-      return;
+    const zoomFactor = 1 + (delta * 1.5);
+    targetScale = Math.min(Math.max(targetScale * zoomFactor, 1.0), 3.5);
+
+    if (targetScale <= 1.015) {
+      targetScale = 1.0;
     }
 
-    // --- Continuous Viewport Zoom (Preserves Native Window Scrollbar) ---
-    const oldScale = visualScale;
-    const zoomMultiplier = 1 + (delta * 1.6);
-    let newScale = Math.min(Math.max(visualScale * zoomMultiplier, 1.0), 4.0);
+    if (!zoomRafId) {
+      zoomRafId = requestAnimationFrame(animateZoom);
+    }
+  }
 
-    if (newScale <= 1.015) {
-      newScale = 1.0;
+  function animateZoom() {
+    // Silky smooth exponential interpolation (0.35 per frame)
+    currentScale += (targetScale - currentScale) * 0.35;
+
+    if (Math.abs(targetScale - currentScale) < 0.004) {
+      currentScale = targetScale;
     }
 
-    if (Math.abs(newScale - oldScale) < 0.002) return;
-
-    visualScale = newScale;
-
-    if (visualScale === 1.0) {
-      document.body.style.zoom = '';
+    if (currentScale <= 1.01) {
+      currentScale = 1.0;
+      targetScale = 1.0;
+      document.body.style.transform = '';
+      document.body.style.transformOrigin = '';
+      document.body.style.transition = '';
+      zoomRafId = null;
       showHud('Zoom', '100%');
       return;
     }
 
-    // Apply continuous CSS zoom on body: Native window scrollbars stay completely visible!
-    document.body.style.zoom = visualScale.toFixed(3);
+    // Camera lens zoom: hardware-accelerated scale centered directly at the focal point!
+    document.body.style.transformOrigin = `${zoomFocalX}px ${zoomFocalY}px`;
+    document.body.style.transform = `scale(${currentScale.toFixed(4)})`;
 
-    // Keep focal point stationary relative to viewport
-    const fx = lastMouseX || (window.innerWidth / 2);
-    const fy = lastMouseY || (window.innerHeight / 2);
-    const ratio = newScale / oldScale;
-    const adjustX = (window.scrollX + fx) * (ratio - 1);
-    const adjustY = (window.scrollY + fy) * (ratio - 1);
-    window.scrollBy({ left: adjustX, top: adjustY, behavior: 'instant' });
+    showHud('Zoom', `${Math.round(currentScale * 100)}%`);
 
-    showHud('Zoom', `${Math.round(visualScale * 100)}%`);
+    if (currentScale !== targetScale) {
+      zoomRafId = requestAnimationFrame(animateZoom);
+    } else {
+      zoomRafId = null;
+    }
   }
 
   // Reset Zoom
   function resetVisualZoom() {
-    visualScale = 1.0;
-    document.body.style.zoom = '';
-    showHud('Zoom', '100%');
+    targetScale = 1.0;
+    document.body.style.transition = 'transform 0.2s cubic-bezier(0.16, 1, 0.3, 1)';
+    document.body.style.transform = 'scale(1)';
+    setTimeout(() => {
+      currentScale = 1.0;
+      targetScale = 1.0;
+      document.body.style.transform = '';
+      document.body.style.transformOrigin = '';
+      document.body.style.transition = '';
+      zoomRafId = null;
+      showHud('Zoom', '100%');
+    }, 210);
   }
 
   // HUD Indicator Element
