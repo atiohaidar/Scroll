@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Scroll — Remote Trackpad</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <header class="header">
+      <div class="brand">
+        <div class="brand-icon">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="4" width="18" height="16" rx="4" />
+            <line x1="12" y1="12" x2="12" y2="12.01" stroke-width="3" stroke-linecap="round" />
+            <path d="M12 8v1M12 15v1M8 12h1M15 12h1" stroke-linecap="round" />
+          </svg>
+        </div>
+        <div class="brand-text">
+          <h1>Scroll</h1>
+          <span class="subtext">Remote Glass Trackpad</span>
+        </div>
+      </div>
+      <div id="status-badge" class="badge badge-init">
+        <span class="badge-dot"></span>
+        <span id="status-text" class="badge-label">Initializing...</span>
+      </div>
+    </header>
+
+    <!-- QR Code / Pairing Section -->
+    <section class="card qr-section">
+      <div class="qr-wrapper">
+        <div id="qr-container" class="qr-box">
+          <div class="qr-loading">Generating pairing code...</div>
+        </div>
+      </div>
+
+      <div class="pair-info">
+        <div class="code-row">
+          <span class="label">Room Code:</span>
+          <span id="room-code" class="code-mono">------</span>
+          <button id="btn-copy" class="btn-icon" title="Copy Mobile Link">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="9" y="9" width="13" height="13" rx="2" />
+              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+            </svg>
+          </button>
+        </div>
+        <p class="hint-text">Scan with your smartphone camera to connect instantly via WebRTC P2P.</p>
+        <button id="btn-edit-host" class="host-pill" title="Click to change mobile web app URL">
+          <span class="host-label">URL:</span>
+          <span id="host-display" class="host-value">http://localhost:3000</span>
+          <svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+          </svg>
+        </button>
+      </div>
+
+      <!-- Live Telemetry Banner (when connected) -->
+      <div id="telemetry-bar" class="telemetry-bar hidden">
+        <div class="telemetry-item">
+          <span class="telemetry-label">Channel</span>
+          <span class="telemetry-value">Direct P2P</span>
+        </div>
+        <div class="telemetry-divider"></div>
+        <div class="telemetry-item">
+          <span class="telemetry-label">Latency</span>
+          <span id="telemetry-latency" class="telemetry-value text-emerald">-- ms</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Settings & Tuning -->
+    <section class="card settings-section">
+      <div class="section-title">
+        <span>Precision Tuning</span>
+        <button id="btn-reset-zoom" class="btn-text">Reset Zoom (100%)</button>
+      </div>
+
+      <!-- Pan Sensitivity -->
+      <div class="control-row">
+        <div class="control-header">
+          <label for="pan-sensitivity">Pan Sensitivity</label>
+          <span id="pan-val" class="val-badge">1.2x</span>
+        </div>
+        <input type="range" id="pan-sensitivity" min="0.5" max="3.0" step="0.1" value="1.2" class="slider">
+      </div>
+
+      <!-- Zoom Sensitivity -->
+      <div class="control-row">
+        <div class="control-header">
+          <label for="zoom-sensitivity">Pinch Zoom Speed</label>
+          <span id="zoom-val" class="val-badge">1.0x</span>
+        </div>
+        <input type="range" id="zoom-sensitivity" min="0.4" max="2.5" step="0.1" value="1.0" class="slider">
+      </div>
+
+      <!-- Toggles -->
+      <div class="toggles-grid">
+        <label class="toggle-card">
+          <div class="toggle-info">
+            <span class="toggle-title">Natural Scroll</span>
+            <span class="toggle-desc">Match content movement</span>
+          </div>
+          <input type="checkbox" id="natural-scroll" checked class="switch">
+        </label>
+
+        <label class="toggle-card">
+          <div class="toggle-info">
+            <span class="toggle-title">Momentum Physics</span>
+            <span class="toggle-desc">Smooth inertia gliding</span>
+          </div>
+          <input type="checkbox" id="momentum-physics" checked class="switch">
+        </label>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+      <span>Sub-5ms UDP streaming &bull; Zero server storage</span>
+    </footer>
+  </div>
+
+  <script src="../lib/qrcode.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

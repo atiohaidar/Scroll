@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="theme-color" content="#F5F5F7">
+  <title>Scroll — Glass Trackpad</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="app" class="app-root">
+
+    <!-- Top Floating HUD Bar -->
+    <header class="hud-header">
+      <div class="hud-pill">
+        <div id="status-indicator" class="status-dot connecting"></div>
+        <span id="status-label" class="status-text">Connecting...</span>
+        <div class="hud-divider"></div>
+        <span id="latency-label" class="latency-text">-- ms</span>
+      </div>
+
+      <div class="hud-actions">
+        <button id="btn-reset-zoom" class="hud-btn" title="Reset Zoom to 100%">
+          <span>100%</span>
+        </button>
+        <button id="btn-haptic" class="hud-btn active" title="Toggle Haptic Vibration">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 2v20M17 5v14M7 5v14M2 9v6M22 9v6" stroke-linecap="round" />
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Recessed Trackpad Surface -->
+    <main id="trackpad" class="trackpad-surface">
+      <!-- Tactile Micro-Grid Canvas / SVG -->
+      <div class="trackpad-grid"></div>
+
+      <!-- Touch Pointer Overlay (Ripples & Pinch Line) -->
+      <div id="touch-overlay" class="touch-overlay"></div>
+
+      <!-- Center Guide / Status watermark -->
+      <div id="watermark" class="watermark">
+        <div class="watermark-icon">
+          <svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="currentColor" stroke-width="1.5">
+            <rect x="3" y="4" width="18" height="16" rx="4" />
+            <circle cx="12" cy="12" r="2" fill="currentColor" />
+            <path d="M12 7v2M12 15v2M7 12h2M15 12h2" stroke-linecap="round" />
+          </svg>
+        </div>
+        <div class="watermark-title">Remote Glass Trackpad</div>
+        <div class="watermark-desc">1 Finger to Pan &bull; 2 Fingers to Pinch Zoom</div>
+      </div>
+    </main>
+
+    <!-- Bottom Sensitivity & Mode Bar -->
+    <footer class="hud-footer">
+      <div class="mode-capsule">
+        <span id="gesture-mode" class="gesture-badge">Ready</span>
+      </div>
+      <div class="speed-capsule">
+        <button class="speed-btn" data-speed="1.0">1.0x</button>
+        <button class="speed-btn active" data-speed="1.4">1.4x</button>
+        <button class="speed-btn" data-speed="2.0">2.0x</button>
+      </div>
+    </footer>
+
+    <!-- Manual Pairing Modal (Hidden if query param exists) -->
+    <div id="pair-modal" class="modal-overlay hidden">
+      <div class="modal-card">
+        <div class="modal-header">
+          <h2>Pair with Browser</h2>
+          <p>Enter the 6-character room code shown in your browser extension.</p>
+        </div>
+        <div class="modal-body">
+          <div class="code-input-wrapper">
+            <span class="prefix">scr-</span>
+            <input type="text" id="manual-code" placeholder="abc123" maxlength="8" autocapitalize="none" autocomplete="off" spellcheck="false">
+          </div>
+          <button id="btn-manual-connect" class="btn-primary">Connect</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script src="lib/peerjs.min.js"></script>
+  <script src="touchpad.js"></script>
+</body>
+</html>
